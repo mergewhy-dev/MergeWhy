@@ -1,58 +1,13 @@
+"use client";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatsCard } from "@/components/stats-card";
 import { DERCard } from "@/components/der-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FileText, AlertTriangle, TrendingUp, Calendar } from "lucide-react";
+import { useDERStats, useNeedsAttention } from "@/hooks/use-ders";
 
-export const dynamic = "force-dynamic";
-
-// Mock data - replace with real data from database
-const mockStats = {
-  totalRecords: 47,
-  totalTrend: 12,
-  pendingReview: 8,
-  pendingTrend: -5,
-  avgScore: 72,
-  scoreTrend: 3,
-  thisWeek: 12,
-  weekTrend: 25,
-};
-
-const mockNeedsAttention = [
-  {
-    id: "1",
-    prNumber: 234,
-    prTitle: "Add user authentication with OAuth2 support",
-    prUrl: "https://github.com/acme/app/pull/234",
-    repositoryName: "acme/app",
-    evidenceScore: 35,
-    gapCount: 3,
-    status: "NEEDS_REVIEW" as const,
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-  },
-  {
-    id: "2",
-    prNumber: 156,
-    prTitle: "Fix database connection pooling issues in production",
-    prUrl: "https://github.com/acme/backend/pull/156",
-    repositoryName: "acme/backend",
-    evidenceScore: 45,
-    gapCount: 2,
-    status: "PENDING" as const,
-    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
-  },
-  {
-    id: "3",
-    prNumber: 89,
-    prTitle: "Refactor payment processing module",
-    prUrl: "https://github.com/acme/payments/pull/89",
-    repositoryName: "acme/payments",
-    evidenceScore: 28,
-    gapCount: 4,
-    status: "INCOMPLETE" as const,
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-  },
-];
-
+// Mock data for recent activity (will be replaced with real activity feed later)
 const mockRecentActivity = [
   { id: "1", action: "DER created", target: "PR #234 in acme/app", time: "2 hours ago" },
   { id: "2", action: "Evidence confirmed", target: "PR #210 in acme/app", time: "3 hours ago" },
@@ -61,7 +16,149 @@ const mockRecentActivity = [
   { id: "5", action: "DER completed", target: "PR #150 in acme/api", time: "2 days ago" },
 ];
 
-export default async function DashboardPage() {
+function StatsSection() {
+  const { data: stats, isLoading, error } = useDERStats();
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-6">
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    // Return mock data on error (e.g., no org selected)
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          title="Total Records"
+          value={0}
+          icon={FileText}
+        />
+        <StatsCard
+          title="Pending Review"
+          value={0}
+          icon={AlertTriangle}
+        />
+        <StatsCard
+          title="Avg. Score"
+          value="--"
+          icon={TrendingUp}
+        />
+        <StatsCard
+          title="This Week"
+          value={0}
+          icon={Calendar}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <StatsCard
+        title="Total Records"
+        value={stats.total}
+        icon={FileText}
+      />
+      <StatsCard
+        title="Pending Review"
+        value={stats.pending + stats.needsReview}
+        icon={AlertTriangle}
+      />
+      <StatsCard
+        title="Avg. Score"
+        value={stats.avgScore || "--"}
+        icon={TrendingUp}
+      />
+      <StatsCard
+        title="This Week"
+        value={stats.thisWeek}
+        icon={Calendar}
+      />
+    </div>
+  );
+}
+
+function NeedsAttentionSection() {
+  const { data: records, isLoading, error } = useNeedsAttention();
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-orange-500" />
+            Needs Attention
+          </CardTitle>
+          <CardDescription>
+            Records with evidence gaps that require action.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-20 w-full" />
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 text-orange-500" />
+          Needs Attention
+        </CardTitle>
+        <CardDescription>
+          Records with evidence gaps that require action.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {error ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            Select an organization to see records.
+          </p>
+        ) : records && records.length > 0 ? (
+          <div className="space-y-3">
+            {records.map((record) => (
+              <DERCard
+                key={record.id}
+                id={record.id}
+                prNumber={record.prNumber}
+                prTitle={record.prTitle}
+                prUrl={record.prUrl}
+                repositoryName={record.repository.fullName}
+                evidenceScore={record.evidenceScore}
+                gapCount={record.gaps.length}
+                status={record.status}
+                createdAt={new Date(record.createdAt)}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            No records need attention. Great job!
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome section */}
@@ -73,61 +170,13 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatsCard
-          title="Total Records"
-          value={mockStats.totalRecords}
-          trend={{ value: mockStats.totalTrend, label: "from last month" }}
-          icon={FileText}
-        />
-        <StatsCard
-          title="Pending Review"
-          value={mockStats.pendingReview}
-          trend={{ value: mockStats.pendingTrend, label: "from last week" }}
-          icon={AlertTriangle}
-        />
-        <StatsCard
-          title="Avg. Score"
-          value={mockStats.avgScore}
-          trend={{ value: mockStats.scoreTrend, label: "from last month" }}
-          icon={TrendingUp}
-        />
-        <StatsCard
-          title="This Week"
-          value={mockStats.thisWeek}
-          trend={{ value: mockStats.weekTrend, label: "from last week" }}
-          icon={Calendar}
-        />
-      </div>
+      <StatsSection />
 
       {/* Main content grid */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Needs attention */}
         <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-orange-500" />
-                Needs Attention
-              </CardTitle>
-              <CardDescription>
-                Records with evidence gaps that require action.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {mockNeedsAttention.length > 0 ? (
-                <div className="space-y-3">
-                  {mockNeedsAttention.map((der) => (
-                    <DERCard key={der.id} {...der} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No records need attention. Great job!
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <NeedsAttentionSection />
         </div>
 
         {/* Recent activity */}

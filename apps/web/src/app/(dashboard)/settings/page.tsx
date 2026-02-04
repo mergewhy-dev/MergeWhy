@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,23 +8,156 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Save, Users, Link2, Shield } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Save, Users, Link2, Shield, Loader2 } from "lucide-react";
+import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
+import { toast } from "sonner";
 
-// Note: Switch component may need to be added via shadcn
-// pnpm dlx shadcn@latest add switch
+function SettingsForm() {
+  const { data: settings, isLoading, error } = useSettings();
+  const updateSettings = useUpdateSettings();
 
-export default function SettingsPage() {
-  const [settings, setSettings] = useState({
-    requireTicketLink: true,
-    requireDescription: true,
-    minReviewers: 1,
-    blockMergeOnGaps: false,
-  });
-
-  const handleToggle = (key: keyof typeof settings) => {
-    setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  const handleToggle = async (
+    key: "requireTicketLink" | "requireDescription" | "blockMergeOnGaps",
+    value: boolean
+  ) => {
+    try {
+      await updateSettings.mutateAsync({ [key]: value });
+      toast.success("Settings updated");
+    } catch {
+      toast.error("Failed to update settings");
+    }
   };
 
+  const handleMinReviewersChange = async (value: number) => {
+    try {
+      await updateSettings.mutateAsync({ minReviewers: value });
+      toast.success("Settings updated");
+    } catch {
+      toast.error("Failed to update settings");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-72" />
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-56" />
+              </div>
+              <Skeleton className="h-6 w-11" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            Evidence Requirements
+          </CardTitle>
+          <CardDescription>
+            Select an organization to configure evidence requirements.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground text-center py-8">
+            Please select an organization from the sidebar.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Shield className="w-5 h-5" />
+          Evidence Requirements
+        </CardTitle>
+        <CardDescription>
+          Configure what evidence is required for PRs in your organization.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label>Require Ticket Link</Label>
+            <p className="text-sm text-muted-foreground">
+              PRs must have a linked Jira, Linear, or GitHub issue.
+            </p>
+          </div>
+          <Switch
+            checked={settings?.requireTicketLink ?? true}
+            onCheckedChange={(checked) => handleToggle("requireTicketLink", checked)}
+            disabled={updateSettings.isPending}
+          />
+        </div>
+        <Separator />
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label>Require Description</Label>
+            <p className="text-sm text-muted-foreground">
+              PRs must have a non-empty description.
+            </p>
+          </div>
+          <Switch
+            checked={settings?.requireDescription ?? true}
+            onCheckedChange={(checked) => handleToggle("requireDescription", checked)}
+            disabled={updateSettings.isPending}
+          />
+        </div>
+        <Separator />
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label>Minimum Reviewers</Label>
+            <p className="text-sm text-muted-foreground">
+              Minimum number of approving reviews required.
+            </p>
+          </div>
+          <Input
+            type="number"
+            min={0}
+            max={5}
+            value={settings?.minReviewers ?? 1}
+            onChange={(e) => handleMinReviewersChange(parseInt(e.target.value) || 0)}
+            className="w-20"
+            disabled={updateSettings.isPending}
+          />
+        </div>
+        <Separator />
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label>Block Merge on Gaps</Label>
+            <p className="text-sm text-muted-foreground">
+              Prevent merging PRs that have unresolved evidence gaps.
+            </p>
+          </div>
+          <Switch
+            checked={settings?.blockMergeOnGaps ?? false}
+            onCheckedChange={(checked) => handleToggle("blockMergeOnGaps", checked)}
+            disabled={updateSettings.isPending}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -38,80 +171,8 @@ export default function SettingsPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main settings */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Evidence Requirements */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                Evidence Requirements
-              </CardTitle>
-              <CardDescription>
-                Configure what evidence is required for PRs in your organization.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Require Ticket Link</Label>
-                  <p className="text-sm text-muted-foreground">
-                    PRs must have a linked Jira, Linear, or GitHub issue.
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.requireTicketLink}
-                  onCheckedChange={() => handleToggle("requireTicketLink")}
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Require Description</Label>
-                  <p className="text-sm text-muted-foreground">
-                    PRs must have a non-empty description.
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.requireDescription}
-                  onCheckedChange={() => handleToggle("requireDescription")}
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Minimum Reviewers</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Minimum number of approving reviews required.
-                  </p>
-                </div>
-                <Input
-                  type="number"
-                  min={0}
-                  max={5}
-                  value={settings.minReviewers}
-                  onChange={(e) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      minReviewers: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                  className="w-20"
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Block Merge on Gaps</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Prevent merging PRs that have unresolved evidence gaps.
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.blockMergeOnGaps}
-                  onCheckedChange={() => handleToggle("blockMergeOnGaps")}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Requirements */}
+          <SettingsForm />
 
           {/* Integrations */}
           <Card>
@@ -202,12 +263,6 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
-
-          {/* Save button */}
-          <Button className="w-full">
-            <Save className="w-4 h-4 mr-2" />
-            Save Changes
-          </Button>
         </div>
       </div>
     </div>
