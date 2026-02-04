@@ -1,0 +1,264 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ ORGANIZATION & USERS ============
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  clerkOrgId  String?  @unique
+  plan        Plan     @default(PILOT)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users               User[]
+  repositories        Repository[]
+  decisionRecords     DecisionEvidenceRecord[]
+  gitHubInstallations GitHubInstallation[]
+  settings            OrganizationSettings?
+}
+
+model User {
+  id             String   @id @default(cuid())
+  clerkUserId    String   @unique
+  email          String
+  name           String?
+  avatarUrl      String?
+  role           Role     @default(MEMBER)
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization  Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  confirmations EvidenceConfirmation[]
+}
+
+model OrganizationSettings {
+  id                String   @id @default(cuid())
+  organizationId    String   @unique
+  requireTicketLink Boolean  @default(true)
+  requireDescription Boolean @default(true)
+  minReviewers      Int      @default(1)
+  blockMergeOnGaps  Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ============ INTEGRATIONS ============
+
+model GitHubInstallation {
+  id             String    @id @default(cuid())
+  installationId Int       @unique
+  organizationId String
+  accountLogin   String
+  accountType    String
+  accessToken    String?
+  tokenExpiresAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  repositories Repository[]
+}
+
+model Repository {
+  id                   String   @id @default(cuid())
+  githubId             Int      @unique
+  name                 String
+  fullName             String
+  organizationId       String
+  gitHubInstallationId String
+  isActive             Boolean  @default(true)
+  defaultBranch        String   @default("main")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  organization       Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  gitHubInstallation GitHubInstallation       @relation(fields: [gitHubInstallationId], references: [id], onDelete: Cascade)
+  decisionRecords    DecisionEvidenceRecord[]
+
+  @@index([organizationId])
+}
+
+// ============ DECISION EVIDENCE RECORDS ============
+
+model DecisionEvidenceRecord {
+  id             String    @id @default(cuid())
+  organizationId String
+  repositoryId   String
+  
+  prNumber       Int
+  prTitle        String
+  prUrl          String
+  prAuthor       String
+  prAuthorAvatar String?
+  prState        PRState   @default(OPEN)
+  prMergedAt     DateTime?
+  prBaseBranch   String
+  prHeadBranch   String
+  
+  description    String?   @db.Text
+  ticketLinks    String[]
+  slackThreads   String[]
+  
+  evidenceScore  Int       @default(0)
+  status         DERStatus @default(PENDING)
+  
+  snapshotUrl    String?
+  snapshotHash   String?
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization  Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  repository    Repository             @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  evidenceItems EvidenceItem[]
+  gaps          EvidenceGap[]
+  confirmations EvidenceConfirmation[]
+  reviews       PRReview[]
+  comments      PRComment[]
+
+  @@unique([repositoryId, prNumber])
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+}
+
+model EvidenceItem {
+  id         String       @id @default(cuid())
+  derId      String
+  type       EvidenceType
+  sourceUrl  String
+  content    String?      @db.Text
+  metadata   Json?
+  capturedAt DateTime     @default(now())
+
+  decisionRecord DecisionEvidenceRecord @relation(fields: [derId], references: [id], onDelete: Cascade)
+}
+
+model EvidenceGap {
+  id         String   @id @default(cuid())
+  derId      String
+  type       GapType
+  severity   Severity @default(MEDIUM)
+  message    String
+  suggestion String?
+  resolved   Boolean  @default(false)
+  resolvedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  decisionRecord DecisionEvidenceRecord @relation(fields: [derId], references: [id], onDelete: Cascade)
+}
+
+model EvidenceConfirmation {
+  id          String   @id @default(cuid())
+  derId       String
+  userId      String
+  confirmedAt DateTime @default(now())
+  note        String?
+
+  decisionRecord DecisionEvidenceRecord @relation(fields: [derId], references: [id], onDelete: Cascade)
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PRReview {
+  id          String      @id @default(cuid())
+  derId       String
+  githubId    Int
+  author      String
+  state       ReviewState
+  body        String?     @db.Text
+  submittedAt DateTime
+  createdAt   DateTime    @default(now())
+
+  decisionRecord DecisionEvidenceRecord @relation(fields: [derId], references: [id], onDelete: Cascade)
+
+  @@unique([derId, githubId])
+}
+
+model PRComment {
+  id        String   @id @default(cuid())
+  derId     String
+  githubId  Int
+  author    String
+  body      String   @db.Text
+  path      String?
+  createdAt DateTime @default(now())
+
+  decisionRecord DecisionEvidenceRecord @relation(fields: [derId], references: [id], onDelete: Cascade)
+
+  @@unique([derId, githubId])
+}
+
+// ============ ENUMS ============
+
+enum Plan {
+  PILOT
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum PRState {
+  OPEN
+  CLOSED
+  MERGED
+}
+
+enum DERStatus {
+  PENDING
+  NEEDS_REVIEW
+  CONFIRMED
+  COMPLETE
+  INCOMPLETE
+}
+
+enum EvidenceType {
+  PR_DESCRIPTION
+  PR_COMMENT
+  REVIEW_COMMENT
+  JIRA_TICKET
+  LINEAR_TICKET
+  GITHUB_ISSUE
+  SLACK_THREAD
+  COMMIT_MESSAGE
+}
+
+enum GapType {
+  MISSING_DESCRIPTION
+  MISSING_TICKET
+  MISSING_REVIEW
+  INSUFFICIENT_CONTEXT
+  NO_TESTING_EVIDENCE
+  MISSING_APPROVAL
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ReviewState {
+  PENDING
+  APPROVED
+  CHANGES_REQUESTED
+  COMMENTED
+  DISMISSED
+}

@@ -1,0 +1,49 @@
+# MergeWhy Development Progress
+
+Last Updated: 2026-02-03
+Current Phase: 1 - MVP Foundation
+Current Focus: Project initialization
+
+---
+
+## COMPLETED
+
+(Starting fresh)
+
+---
+
+## IN PROGRESS
+
+None - ready to begin
+
+---
+
+## NEXT UP (Priority Order)
+
+1. [ ] Initialize Turborepo monorepo
+2. [ ] Create Next.js web app with TypeScript + Tailwind
+3. [ ] Set up Prisma database package
+4. [ ] Configure Clerk authentication
+5. [ ] Build dashboard shell with shadcn/ui
+6. [ ] Create GitHub webhook handler
+7. [ ] Implement DER creation from PR events
+8. [ ] Build evidence score calculator
+9. [ ] Create dashboard pages (list, detail views)
+10. [ ] Add PDF export
+
+---
+
+## DECISIONS MADE
+
+- Package Manager: pnpm
+- Auth: Clerk (better org support than Auth0)
+- UI: shadcn/ui (composable, not locked in)
+- API: tRPC (type-safe end-to-end)
+
+---
+
+## SESSION LOG
+
+### Session 1 - 2026-02-03
+- Project setup files created
+- Ready to initialize monorepo
