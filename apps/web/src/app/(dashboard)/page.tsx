@@ -1,121 +1,156 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatsCard } from "@/components/stats-card";
+import { DERCard } from "@/components/der-card";
+import { FileText, AlertTriangle, TrendingUp, Calendar } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+// Mock data - replace with real data from database
+const mockStats = {
+  totalRecords: 47,
+  totalTrend: 12,
+  pendingReview: 8,
+  pendingTrend: -5,
+  avgScore: 72,
+  scoreTrend: 3,
+  thisWeek: 12,
+  weekTrend: 25,
+};
 
+const mockNeedsAttention = [
+  {
+    id: "1",
+    prNumber: 234,
+    prTitle: "Add user authentication with OAuth2 support",
+    prUrl: "https://github.com/acme/app/pull/234",
+    repositoryName: "acme/app",
+    evidenceScore: 35,
+    gapCount: 3,
+    status: "NEEDS_REVIEW" as const,
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+  },
+  {
+    id: "2",
+    prNumber: 156,
+    prTitle: "Fix database connection pooling issues in production",
+    prUrl: "https://github.com/acme/backend/pull/156",
+    repositoryName: "acme/backend",
+    evidenceScore: 45,
+    gapCount: 2,
+    status: "PENDING" as const,
+    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
+  },
+  {
+    id: "3",
+    prNumber: 89,
+    prTitle: "Refactor payment processing module",
+    prUrl: "https://github.com/acme/payments/pull/89",
+    repositoryName: "acme/payments",
+    evidenceScore: 28,
+    gapCount: 4,
+    status: "INCOMPLETE" as const,
+    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+  },
+];
+
+const mockRecentActivity = [
+  { id: "1", action: "DER created", target: "PR #234 in acme/app", time: "2 hours ago" },
+  { id: "2", action: "Evidence confirmed", target: "PR #210 in acme/app", time: "3 hours ago" },
+  { id: "3", action: "Gap resolved", target: "Missing ticket in PR #189", time: "5 hours ago" },
+  { id: "4", action: "Repository connected", target: "acme/backend", time: "1 day ago" },
+  { id: "5", action: "DER completed", target: "PR #150 in acme/api", time: "2 days ago" },
+];
+
+export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome section */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Welcome to MergeWhy</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
         <p className="text-muted-foreground">
-          Your decision evidence system for engineering teams.
+          Overview of your decision evidence records.
         </p>
       </div>
 
       {/* Stats overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
-            <Badge variant="secondary">All time</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">
-              Decision Evidence Records
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
-            <Badge variant="outline">Action needed</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">
-              Records awaiting confirmation
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Repositories</CardTitle>
-            <Badge variant="secondary">Connected</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">
-              GitHub repositories tracked
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Evidence Score</CardTitle>
-            <Badge variant="secondary">This month</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">--</div>
-            <p className="text-xs text-muted-foreground">
-              Out of 100
-            </p>
-          </CardContent>
-        </Card>
+        <StatsCard
+          title="Total Records"
+          value={mockStats.totalRecords}
+          trend={{ value: mockStats.totalTrend, label: "from last month" }}
+          icon={FileText}
+        />
+        <StatsCard
+          title="Pending Review"
+          value={mockStats.pendingReview}
+          trend={{ value: mockStats.pendingTrend, label: "from last week" }}
+          icon={AlertTriangle}
+        />
+        <StatsCard
+          title="Avg. Score"
+          value={mockStats.avgScore}
+          trend={{ value: mockStats.scoreTrend, label: "from last month" }}
+          icon={TrendingUp}
+        />
+        <StatsCard
+          title="This Week"
+          value={mockStats.thisWeek}
+          trend={{ value: mockStats.weekTrend, label: "from last week" }}
+          icon={Calendar}
+        />
       </div>
 
-      {/* Getting started */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Getting Started</CardTitle>
-          <CardDescription>
-            Complete these steps to start capturing decision evidence.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-medium">
-                1
-              </div>
-              <div>
-                <p className="font-medium">Connect your GitHub organization</p>
-                <p className="text-sm text-muted-foreground">
-                  Install the MergeWhy GitHub App to start tracking repositories.
+      {/* Main content grid */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Needs attention */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-orange-500" />
+                Needs Attention
+              </CardTitle>
+              <CardDescription>
+                Records with evidence gaps that require action.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {mockNeedsAttention.length > 0 ? (
+                <div className="space-y-3">
+                  {mockNeedsAttention.map((der) => (
+                    <DERCard key={der.id} {...der} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No records need attention. Great job!
                 </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent activity */}
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+              <CardDescription>Latest updates across your organization.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {mockRecentActivity.map((activity) => (
+                  <div key={activity.id} className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium">{activity.action}</p>
+                    <p className="text-xs text-muted-foreground">{activity.target}</p>
+                    <p className="text-xs text-muted-foreground">{activity.time}</p>
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-medium">
-                2
-              </div>
-              <div>
-                <p className="font-medium">Select repositories to track</p>
-                <p className="text-sm text-muted-foreground">
-                  Choose which repositories should have decision evidence captured.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-medium">
-                3
-              </div>
-              <div>
-                <p className="font-medium">Configure evidence requirements</p>
-                <p className="text-sm text-muted-foreground">
-                  Set up what evidence is required for PRs in your organization.
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
