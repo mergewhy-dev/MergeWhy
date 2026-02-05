@@ -37,30 +37,39 @@ const gapIcons: Record<GapType, typeof AlertCircle> = {
   MISSING_APPROVAL: CheckCircle,
 };
 
-const severityStyles: Record<Severity, { bg: string; border: string; icon: string; text: string }> = {
+// Using brand colors with left accent border
+const severityStyles: Record<Severity, { bg: string; border: string; leftBorder: string; icon: string; text: string; badge: string }> = {
   LOW: {
-    bg: "bg-slate-50",
-    border: "border-slate-200",
-    icon: "text-slate-500",
-    text: "text-slate-700",
+    bg: "bg-muted/30",
+    border: "border-border/50",
+    leftBorder: "border-l-[3px] border-l-muted-foreground/40",
+    icon: "text-muted-foreground",
+    text: "text-foreground",
+    badge: "bg-muted text-muted-foreground",
   },
   MEDIUM: {
-    bg: "bg-yellow-50",
-    border: "border-yellow-200",
-    icon: "text-yellow-600",
-    text: "text-yellow-800",
+    bg: "bg-[#d4a853]/5",
+    border: "border-[#d4a853]/15",
+    leftBorder: "border-l-[3px] border-l-[#d4a853]",
+    icon: "text-[#d4a853]",
+    text: "text-foreground",
+    badge: "bg-[#d4a853]/10 text-[#d4a853]",
   },
   HIGH: {
-    bg: "bg-orange-50",
-    border: "border-orange-200",
-    icon: "text-orange-600",
-    text: "text-orange-800",
+    bg: "bg-[#d4883a]/5",
+    border: "border-[#d4883a]/15",
+    leftBorder: "border-l-[3px] border-l-[#d4883a]",
+    icon: "text-[#d4883a]",
+    text: "text-foreground",
+    badge: "bg-[#d4883a]/10 text-[#d4883a]",
   },
   CRITICAL: {
-    bg: "bg-red-50",
-    border: "border-red-200",
-    icon: "text-red-600",
-    text: "text-red-800",
+    bg: "bg-[#c45c5c]/5",
+    border: "border-[#c45c5c]/15",
+    leftBorder: "border-l-[3px] border-l-[#c45c5c]",
+    icon: "text-[#c45c5c]",
+    text: "text-foreground",
+    badge: "bg-[#c45c5c]/10 text-[#c45c5c]",
   },
 };
 
@@ -79,14 +88,18 @@ export function GapAlert({
     return (
       <div
         className={cn(
-          "flex items-start gap-3 p-3 rounded-lg border bg-green-50 border-green-200",
+          "flex items-start gap-3 p-3.5 rounded-lg border border-l-[3px] border-l-[#4a7c59] bg-[#4a7c59]/5 border-[#4a7c59]/20 transition-all",
           className
         )}
       >
-        <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+        <CheckCircle className="w-5 h-5 text-[#4a7c59] mt-0.5 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-green-800 line-through">{message}</p>
-          <p className="text-xs text-green-600 mt-1">Resolved</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground line-through">{message}</p>
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-[#4a7c59]/10 text-[#4a7c59]">
+              Resolved
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -95,30 +108,30 @@ export function GapAlert({
   return (
     <div
       className={cn(
-        "flex items-start gap-3 p-3 rounded-lg border",
+        "flex items-start gap-3 p-3.5 rounded-lg border transition-all hover:shadow-sm",
         styles.bg,
         styles.border,
+        styles.leftBorder,
         className
       )}
     >
-      <Icon className={cn("w-5 h-5 mt-0.5 flex-shrink-0", styles.icon)} />
+      <div className={cn("p-1.5 rounded-lg", styles.bg)}>
+        <Icon className={cn("w-4 h-4", styles.icon)} />
+      </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className={cn("text-sm font-medium", styles.text)}>{message}</p>
+        <div className="flex items-start justify-between gap-2">
+          <p className={cn("text-sm font-medium leading-snug", styles.text)}>{message}</p>
           <span
             className={cn(
-              "text-xs px-1.5 py-0.5 rounded font-medium",
-              severity === "CRITICAL" && "bg-red-100 text-red-700",
-              severity === "HIGH" && "bg-orange-100 text-orange-700",
-              severity === "MEDIUM" && "bg-yellow-100 text-yellow-700",
-              severity === "LOW" && "bg-slate-100 text-slate-600"
+              "text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0",
+              styles.badge
             )}
           >
             {severity}
           </span>
         </div>
         {suggestion && (
-          <p className="text-xs text-muted-foreground mt-1">{suggestion}</p>
+          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{suggestion}</p>
         )}
       </div>
     </div>

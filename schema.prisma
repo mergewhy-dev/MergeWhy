@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ============ ORGANIZATION & USERS ============
@@ -24,8 +23,6 @@ model Organization {
   decisionRecords     DecisionEvidenceRecord[]
   gitHubInstallations GitHubInstallation[]
   settings            OrganizationSettings?
-  evidenceVaults      EvidenceVault[]
-  frameworks          OrganizationFramework[]
 }
 
 model User {
@@ -98,7 +95,7 @@ model DecisionEvidenceRecord {
   id             String    @id @default(cuid())
   organizationId String
   repositoryId   String
-
+  
   prNumber       Int
   prTitle        String
   prUrl          String
@@ -108,29 +105,17 @@ model DecisionEvidenceRecord {
   prMergedAt     DateTime?
   prBaseBranch   String
   prHeadBranch   String
-
+  
   description    String?   @db.Text
   ticketLinks    String[]
   slackThreads   String[]
-
+  
   evidenceScore  Int       @default(0)
   status         DERStatus @default(PENDING)
-
-  // AI Documentation Analysis fields
-  aiDocQuality        String?       // "COMPLETE" | "PARTIAL" | "INSUFFICIENT"
-  aiIntentAlignment   String?       // "ALIGNED" | "UNCLEAR" | "MISALIGNED"
-  aiAuditReadiness    String?       // "READY" | "NEEDS_WORK" | "NOT_READY"
-  aiMissingContext    String[]
-  aiSuggestions       String[]
-  aiSummary           String?       @db.Text
-  aiAnalyzedAt        DateTime?
-
-  // Files changed (for analysis)
-  filesChanged        String[]
-
+  
   snapshotUrl    String?
   snapshotHash   String?
-
+  
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -141,7 +126,6 @@ model DecisionEvidenceRecord {
   confirmations EvidenceConfirmation[]
   reviews       PRReview[]
   comments      PRComment[]
-  vault         EvidenceVault?
 
   @@unique([repositoryId, prNumber])
   @@index([organizationId, status])
@@ -214,47 +198,6 @@ model PRComment {
   @@unique([derId, githubId])
 }
 
-// ============ EVIDENCE VAULT ============
-
-model EvidenceVault {
-  id                String   @id @default(cuid())
-
-  // Link to DER
-  decisionRecordId  String   @unique
-  decisionRecord    DecisionEvidenceRecord @relation(fields: [decisionRecordId], references: [id], onDelete: Cascade)
-
-  // The complete evidence package
-  snapshotData      Json     // All evidence compiled as JSON
-  snapshotHash      String   // SHA-256 hash for integrity verification
-
-  // Individual evidence components (for querying)
-  prSnapshot        Json?    // PR details at time of merge
-  codeSnapshot      Json?    // Files changed, diff summary
-  ticketSnapshot    Json?    // Jira/Linear ticket data
-  reviewsSnapshot   Json?    // All reviews and comments
-  approvalsSnapshot Json?    // Approvals with timestamps
-  slackSnapshot     Json?    // Slack threads if captured
-  aiAnalysisSnapshot Json?   // AI analysis at time of merge
-
-  // Seal metadata
-  isSealed          Boolean  @default(false)
-  sealedAt          DateTime?
-  sealedBy          String?  // User who triggered the seal (or "system")
-
-  // Audit metadata
-  mergedAt          DateTime
-  mergedBy          String
-
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  organizationId    String
-  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@index([organizationId])
-  @@index([mergedAt])
-}
-
 // ============ ENUMS ============
 
 enum Plan {
@@ -318,54 +261,4 @@ enum ReviewState {
   CHANGES_REQUESTED
   COMMENTED
   DISMISSED
-}
-
-// ============ COMPLIANCE FRAMEWORKS ============
-
-model ComplianceFramework {
-  id          String   @id @default(cuid())
-  name        String   // "SOC 2 Type II", "DORA", "ISO 27001"
-  shortCode   String   @unique // "soc2", "dora", "iso27001"
-  description String?
-  icon        String?  // emoji or icon name
-  createdAt   DateTime @default(now())
-
-  controls      ComplianceControl[]
-  organizations OrganizationFramework[]
-}
-
-model ComplianceControl {
-  id          String   @id @default(cuid())
-  frameworkId String
-  controlId   String   // "CC8.1", "Art.9(4)(e)", "A.8.32"
-  name        String   // "Change Management"
-  description String?
-  category    String?
-
-  // Evidence requirements for this control
-  requiresApproval       Boolean @default(false)
-  requiresReview         Boolean @default(false)
-  requiresTicketLink     Boolean @default(false)
-  requiresDescription    Boolean @default(false)
-  requiresRiskAssessment Boolean @default(false)
-  minReviewers           Int     @default(0)
-
-  createdAt DateTime @default(now())
-
-  framework ComplianceFramework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
-
-  @@unique([frameworkId, controlId])
-}
-
-model OrganizationFramework {
-  id             String   @id @default(cuid())
-  organizationId String
-  frameworkId    String
-  isActive       Boolean  @default(true)
-  enabledAt      DateTime @default(now())
-
-  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  framework    ComplianceFramework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
-
-  @@unique([organizationId, frameworkId])
 }

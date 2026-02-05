@@ -30,44 +30,54 @@ export function calculateScoreBreakdown(input: ScoreInput): ScoreBreakdown {
   let completeness = 0;
 
   // Description (0-25 points)
-  if (input.hasDescription) {
-    description += 10;
-    if (input.descriptionLength > 100) description += 5;
-    if (input.descriptionLength > 300) description += 5;
-    if (input.descriptionLength > 500) description += 5;
+  // - Description exists (>10 chars): +15 points
+  // - Description detailed (>100 chars): +10 points
+  if (input.hasDescription && input.descriptionLength > 10) {
+    description += 15;
+    if (input.descriptionLength > 100) {
+      description += 10;
+    }
   }
 
-  // Ticket links (0-25 points)
+  // Ticket links: +25 points
   if (input.ticketCount > 0) {
-    tickets += 15;
-    tickets += Math.min(input.ticketCount - 1, 2) * 5;
+    tickets = 25;
   }
 
-  // Reviews (0-30 points)
+  // Reviews (0-35 points)
+  // - Has review: +15 points
+  // - Has approval: +20 points
   if (input.reviewCount > 0) {
-    reviews += 10;
-    reviews += Math.min(input.reviewCount, 2) * 5;
-    reviews += Math.min(input.approvedReviewCount, 2) * 5;
+    reviews += 15;
+  }
+  if (input.approvedReviewCount > 0) {
+    reviews += 20;
   }
 
-  // Slack context (0-10 points)
+  // Slack context: +10 points
   if (input.hasSlackContext) {
     slackContext = 10;
   }
 
-  // Bonus for having everything (0-10 points)
-  if (
-    input.hasDescription &&
-    input.ticketCount > 0 &&
-    input.approvedReviewCount > 0
-  ) {
-    completeness = 10;
-  }
+  // Completeness bonus removed - points are now more direct
 
   const total = Math.min(
     description + tickets + reviews + slackContext + completeness,
     100
   );
+
+  console.log("[Evidence Score] Calculation:", {
+    input: {
+      hasDescription: input.hasDescription,
+      descriptionLength: input.descriptionLength,
+      ticketCount: input.ticketCount,
+      reviewCount: input.reviewCount,
+      approvedReviewCount: input.approvedReviewCount,
+      hasSlackContext: input.hasSlackContext,
+    },
+    breakdown: { description, tickets, reviews, slackContext, completeness },
+    total,
+  });
 
   return {
     description,

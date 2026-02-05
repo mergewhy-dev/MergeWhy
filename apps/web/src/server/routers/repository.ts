@@ -2,15 +2,38 @@ import { z } from "zod";
 import { router, orgProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 
+// Helper to get the database organization ID from Clerk org ID
+async function getOrganization(prisma: any, clerkOrgId: string) {
+  const org = await prisma.organization.findFirst({
+    where: { clerkOrgId },
+  });
+
+  if (!org) {
+    console.log("[Repository Router] Organization not found for clerkOrgId:", clerkOrgId);
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Organization not found. Please ensure your organization is set up.",
+    });
+  }
+
+  return org;
+}
+
 export const repositoryRouter = router({
   list: orgProcedure.query(async ({ ctx }) => {
+    console.log("[Repository Router] list called with clerkOrgId:", ctx.orgId);
+
+    const org = await getOrganization(ctx.prisma, ctx.orgId);
+
     const repositories = await ctx.prisma.repository.findMany({
-      where: { organizationId: ctx.orgId },
+      where: { organizationId: org.id },
       include: {
         _count: { select: { decisionRecords: true } },
       },
       orderBy: { updatedAt: "desc" },
     });
+
+    console.log("[Repository Router] list found", repositories.length, "repositories");
 
     // Get stats for each repository
     const reposWithStats = await Promise.all(
@@ -43,8 +66,10 @@ export const repositoryRouter = router({
   getById: orgProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
+      const org = await getOrganization(ctx.prisma, ctx.orgId);
+
       const repository = await ctx.prisma.repository.findFirst({
-        where: { id: input.id, organizationId: ctx.orgId },
+        where: { id: input.id, organizationId: org.id },
         include: {
           gitHubInstallation: true,
           _count: { select: { decisionRecords: true } },
@@ -94,8 +119,10 @@ export const repositoryRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const org = await getOrganization(ctx.prisma, ctx.orgId);
+
       const repository = await ctx.prisma.repository.findFirst({
-        where: { id: input.id, organizationId: ctx.orgId },
+        where: { id: input.id, organizationId: org.id },
       });
 
       if (!repository) {
@@ -112,11 +139,17 @@ export const repositoryRouter = router({
     }),
 
   getStats: orgProcedure.query(async ({ ctx }) => {
+    console.log("[Repository Router] getStats called with clerkOrgId:", ctx.orgId);
+
+    const org = await getOrganization(ctx.prisma, ctx.orgId);
+
     const [total, active, totalDERs] = await Promise.all([
-      ctx.prisma.repository.count({ where: { organizationId: ctx.orgId } }),
-      ctx.prisma.repository.count({ where: { organizationId: ctx.orgId, isActive: true } }),
-      ctx.prisma.decisionEvidenceRecord.count({ where: { organizationId: ctx.orgId } }),
+      ctx.prisma.repository.count({ where: { organizationId: org.id } }),
+      ctx.prisma.repository.count({ where: { organizationId: org.id, isActive: true } }),
+      ctx.prisma.decisionEvidenceRecord.count({ where: { organizationId: org.id } }),
     ]);
+
+    console.log("[Repository Router] getStats results:", { total, active, totalDERs });
 
     return { total, active, totalDERs };
   }),

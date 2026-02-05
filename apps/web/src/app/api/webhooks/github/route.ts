@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { Webhooks } from "@octokit/webhooks";
 import { prisma } from "@mergewhy/database";
 import { extractTicketLinks, extractSlackLinks } from "@/lib/evidence-extractor";
-import { calculateEvidenceScore, detectGaps } from "@/lib/evidence-score";
+import { updateEvidenceCheck } from "@/lib/github-checks";
+import { analyzeChangeRisk } from "@/lib/ai-analysis";
+import { getInstallationOctokit } from "@/lib/github";
+import { recalculateGapsAndScore, getGapsForCheck } from "@/lib/der-recalculate";
+import { createEvidenceVault } from "@/lib/evidence-vault";
 
 // Webhook events are not protected by auth middleware
 export const dynamic = "force-dynamic";
@@ -90,13 +94,21 @@ interface PullRequestWebhook {
     };
     head: {
       ref: string;
+      sha: string;
     };
     merged: boolean;
     merged_at: string | null;
+    merged_by?: {
+      login: string;
+    } | null;
   };
   repository: {
     id: number;
     full_name: string;
+    owner: {
+      login: string;
+    };
+    name: string;
   };
   installation?: {
     id: number;
@@ -109,7 +121,10 @@ async function handlePullRequest(data: PullRequestWebhook) {
   // Find repository in our database
   const repo = await prisma.repository.findFirst({
     where: { githubId: repository.id },
-    include: { organization: { include: { settings: true } } },
+    include: {
+      organization: { include: { settings: true } },
+      gitHubInstallation: true,
+    },
   });
 
   if (!repo) {
@@ -122,17 +137,17 @@ async function handlePullRequest(data: PullRequestWebhook) {
     return;
   }
 
+  // Extract evidence from PR body
   const ticketLinks = extractTicketLinks(pull_request.body || "");
   const slackThreads = extractSlackLinks(pull_request.body || "");
 
-  const scoreInput = {
-    hasDescription: !!pull_request.body && pull_request.body.length > 0,
-    descriptionLength: pull_request.body?.length || 0,
-    ticketCount: ticketLinks.length,
-    reviewCount: 0,
-    approvedReviewCount: 0,
-    hasSlackContext: slackThreads.length > 0,
-  };
+  console.log(`[GitHub Webhook] PR #${pull_request.number} evidence extraction:`, {
+    hasBody: !!pull_request.body,
+    bodyLength: pull_request.body?.length || 0,
+    bodyPreview: pull_request.body?.substring(0, 100),
+    ticketLinks,
+    slackThreads,
+  });
 
   if (action === "opened" || action === "reopened") {
     // Check if DER already exists (in case of reopened)
@@ -140,8 +155,10 @@ async function handlePullRequest(data: PullRequestWebhook) {
       where: { repositoryId: repo.id, prNumber: pull_request.number },
     });
 
+    let derId: string;
+
     if (existing) {
-      // Update existing DER
+      // Update existing DER with new PR data
       await prisma.decisionEvidenceRecord.update({
         where: { id: existing.id },
         data: {
@@ -150,12 +167,13 @@ async function handlePullRequest(data: PullRequestWebhook) {
           description: pull_request.body,
           ticketLinks,
           slackThreads,
-          evidenceScore: calculateEvidenceScore(scoreInput),
           status: "PENDING",
         },
       });
+      derId = existing.id;
+      console.log(`[GitHub Webhook] Updated existing DER for PR #${pull_request.number}: ${derId}`);
     } else {
-      // Create new DER
+      // Create new DER with initial data (score will be calculated by recalculateGapsAndScore)
       const der = await prisma.decisionEvidenceRecord.create({
         data: {
           organizationId: repo.organizationId,
@@ -171,10 +189,12 @@ async function handlePullRequest(data: PullRequestWebhook) {
           description: pull_request.body,
           ticketLinks,
           slackThreads,
-          evidenceScore: calculateEvidenceScore(scoreInput),
+          evidenceScore: 0,
           status: "PENDING",
         },
       });
+      derId = der.id;
+      console.log(`[GitHub Webhook] Created new DER for PR #${pull_request.number}: ${derId}`);
 
       // Create initial evidence item for PR description
       if (pull_request.body) {
@@ -187,38 +207,50 @@ async function handlePullRequest(data: PullRequestWebhook) {
           },
         });
       }
-
-      // Detect and create gaps
-      const settings = repo.organization.settings;
-      if (settings) {
-        const gaps = detectGaps(scoreInput, {
-          requireDescription: settings.requireDescription,
-          requireTicketLink: settings.requireTicketLink,
-          minReviewers: settings.minReviewers,
-        });
-
-        for (const gap of gaps) {
-          await prisma.evidenceGap.create({
-            data: {
-              derId: der.id,
-              type: gap.type,
-              severity: gap.severity,
-              message: gap.message,
-              suggestion: gap.suggestion,
-            },
-          });
-        }
-      }
     }
 
-    console.log(`DER created/updated for PR #${pull_request.number}`);
+    // Recalculate gaps and score using the centralized function
+    const result = await recalculateGapsAndScore(derId);
+
+    // Get gaps for GitHub Check
+    const gaps = await getGapsForCheck(derId);
+
+    // Create GitHub Check Run
+    if (repo.gitHubInstallation && data.installation?.id && result) {
+      await updateEvidenceCheck({
+        installationId: data.installation.id,
+        owner: repository.owner.login,
+        repo: repository.name,
+        headSha: pull_request.head.sha,
+        prNumber: pull_request.number,
+        derId,
+        evidenceScore: result.evidenceScore,
+        gaps,
+        prTitle: pull_request.title,
+      });
+    }
+
+    // Run AI analysis in background (don't block webhook response)
+    runAIAnalysis(derId, data.installation?.id, repository.owner.login, repository.name, pull_request.number, pull_request.head.sha).catch(err => {
+      console.error("[AI Analysis] Background analysis failed:", err);
+    });
+
+    console.log(`[GitHub Webhook] DER created/updated for PR #${pull_request.number}, score: ${result?.evidenceScore}, gaps: ${gaps.length}`);
   } else if (action === "edited") {
-    // Update existing DER
+    // Find existing DER
     const der = await prisma.decisionEvidenceRecord.findFirst({
       where: { repositoryId: repo.id, prNumber: pull_request.number },
     });
 
     if (der) {
+      console.log(`[GitHub Webhook] PR #${pull_request.number} edited`, {
+        oldTicketLinks: der.ticketLinks,
+        newTicketLinks: ticketLinks,
+        oldDescription: der.description?.substring(0, 50),
+        newDescription: pull_request.body?.substring(0, 50),
+      });
+
+      // Update DER with new PR data first
       await prisma.decisionEvidenceRecord.update({
         where: { id: der.id },
         data: {
@@ -230,10 +262,54 @@ async function handlePullRequest(data: PullRequestWebhook) {
       });
 
       // Update description evidence item
-      await prisma.evidenceItem.updateMany({
-        where: { derId: der.id, type: "PR_DESCRIPTION" },
-        data: { content: pull_request.body },
+      if (pull_request.body) {
+        const existingEvidence = await prisma.evidenceItem.findFirst({
+          where: { derId: der.id, type: "PR_DESCRIPTION" },
+        });
+        if (existingEvidence) {
+          await prisma.evidenceItem.update({
+            where: { id: existingEvidence.id },
+            data: { content: pull_request.body },
+          });
+        } else {
+          await prisma.evidenceItem.create({
+            data: {
+              derId: der.id,
+              type: "PR_DESCRIPTION",
+              sourceUrl: pull_request.html_url,
+              content: pull_request.body,
+            },
+          });
+        }
+      }
+
+      // Use centralized function to recalculate gaps and score
+      const result = await recalculateGapsAndScore(der.id);
+
+      // Get gaps for GitHub Check
+      const gaps = await getGapsForCheck(der.id);
+
+      // Update GitHub Check
+      if (repo.gitHubInstallation && data.installation?.id && result) {
+        await updateEvidenceCheck({
+          installationId: data.installation.id,
+          owner: repository.owner.login,
+          repo: repository.name,
+          headSha: pull_request.head.sha,
+          prNumber: pull_request.number,
+          derId: der.id,
+          evidenceScore: result.evidenceScore,
+          gaps,
+          prTitle: pull_request.title,
+        });
+      }
+
+      // Re-run AI analysis with updated description
+      runAIAnalysis(der.id, data.installation?.id, repository.owner.login, repository.name, pull_request.number, pull_request.head.sha).catch(err => {
+        console.error("[AI Analysis] Background analysis failed:", err);
       });
+
+      console.log(`[GitHub Webhook] PR #${pull_request.number} edited: score=${result?.evidenceScore}, gaps=${gaps.filter(g => !g.resolved).length} unresolved`);
     }
   } else if (action === "closed") {
     const der = await prisma.decisionEvidenceRecord.findFirst({
@@ -243,6 +319,8 @@ async function handlePullRequest(data: PullRequestWebhook) {
 
     if (der) {
       const hasUnresolvedGaps = der.gaps.length > 0;
+
+      // Update DER state
       await prisma.decisionEvidenceRecord.update({
         where: { id: der.id },
         data: {
@@ -250,18 +328,61 @@ async function handlePullRequest(data: PullRequestWebhook) {
           prMergedAt: pull_request.merged_at
             ? new Date(pull_request.merged_at)
             : null,
-          status: hasUnresolvedGaps ? "INCOMPLETE" : "COMPLETE",
+          status: pull_request.merged
+            ? "COMPLETE" // Will be set by vault creation
+            : hasUnresolvedGaps
+            ? "INCOMPLETE"
+            : "COMPLETE",
         },
       });
+
+      // If PR was merged, create the Evidence Vault
+      if (pull_request.merged) {
+        const mergedBy = pull_request.merged_by?.login || pull_request.user.login;
+
+        try {
+          const vaultId = await createEvidenceVault(der.id, mergedBy);
+          console.log(`[GitHub Webhook] Evidence vault created for merged PR #${pull_request.number}: ${vaultId}`);
+        } catch (vaultError) {
+          console.error(`[GitHub Webhook] Failed to create evidence vault for PR #${pull_request.number}:`, vaultError);
+          // Don't throw - the webhook should still succeed
+        }
+      }
     }
   } else if (action === "synchronize") {
-    // PR was updated with new commits - recalculate score
+    // PR was updated with new commits - recalculate gaps and score
     const der = await prisma.decisionEvidenceRecord.findFirst({
       where: { repositoryId: repo.id, prNumber: pull_request.number },
     });
 
     if (der) {
-      await recalculateScore(der.id);
+      // Use centralized function to recalculate gaps and score
+      const result = await recalculateGapsAndScore(der.id);
+
+      // Get gaps for GitHub Check
+      const gaps = await getGapsForCheck(der.id);
+
+      // Update GitHub Check
+      if (repo.gitHubInstallation && data.installation?.id && result) {
+        await updateEvidenceCheck({
+          installationId: data.installation.id,
+          owner: repository.owner.login,
+          repo: repository.name,
+          headSha: pull_request.head.sha,
+          prNumber: pull_request.number,
+          derId: der.id,
+          evidenceScore: result.evidenceScore,
+          gaps,
+          prTitle: pull_request.title,
+        });
+      }
+
+      // Re-run AI analysis with new commits
+      runAIAnalysis(der.id, data.installation?.id, repository.owner.login, repository.name, pull_request.number, pull_request.head.sha).catch(err => {
+        console.error("[AI Analysis] Background analysis failed:", err);
+      });
+
+      console.log(`[GitHub Webhook] PR #${pull_request.number} synchronized: score=${result?.evidenceScore}, gaps=${gaps.filter(g => !g.resolved).length} unresolved`);
     }
   }
 }
@@ -279,8 +400,19 @@ interface ReviewWebhook {
   };
   pull_request: {
     number: number;
+    title: string;
+    head: {
+      sha: string;
+    };
   };
   repository: {
+    id: number;
+    owner: {
+      login: string;
+    };
+    name: string;
+  };
+  installation?: {
     id: number;
   };
 }
@@ -329,10 +461,33 @@ async function handlePullRequestReview(data: ReviewWebhook) {
     },
   });
 
-  // Recalculate evidence score
-  await recalculateScore(der.id);
+  // Use centralized function to recalculate gaps and score
+  const result = await recalculateGapsAndScore(der.id);
 
-  console.log(`Review recorded for PR #${pull_request.number}`);
+  // Get gaps for GitHub Check
+  const gaps = await getGapsForCheck(der.id);
+
+  // Update GitHub Check if we have installation
+  const repoWithInstallation = await prisma.repository.findFirst({
+    where: { githubId: repository.id },
+    include: { gitHubInstallation: true },
+  });
+
+  if (repoWithInstallation?.gitHubInstallation && data.installation?.id && result) {
+    await updateEvidenceCheck({
+      installationId: data.installation.id,
+      owner: repository.owner.login,
+      repo: repository.name,
+      headSha: pull_request.head.sha,
+      prNumber: pull_request.number,
+      derId: der.id,
+      evidenceScore: result.evidenceScore,
+      gaps,
+      prTitle: pull_request.title,
+    });
+  }
+
+  console.log(`[GitHub Webhook] Review recorded for PR #${pull_request.number}: score=${result?.evidenceScore}, gaps=${gaps.filter(g => !g.resolved).length} unresolved`);
 }
 
 interface ReviewCommentWebhook {
@@ -402,109 +557,304 @@ interface InstallationWebhook {
     id: number;
     name: string;
     full_name: string;
+    default_branch?: string;
   }>;
 }
 
 async function handleInstallation(data: InstallationWebhook) {
   const { action, installation, repositories } = data;
 
-  console.log(`Installation ${action}: ${installation.id}`, {
+  console.log(`[GitHub Webhook] Installation ${action}: ${installation.id}`, {
     account: installation.account.login,
+    accountType: installation.account.type,
     repoCount: repositories?.length,
   });
 
-  // For now, just log the installation
-  // In production, you would:
-  // 1. Store the installation ID
-  // 2. Link it to an organization
-  // 3. Create repository records
+  if (action === "created") {
+    // Find an organization to link this installation to
+    // For now, find the first organization or create one based on GitHub account
+    let organization = await prisma.organization.findFirst({
+      orderBy: { createdAt: "asc" },
+    });
+
+    if (!organization) {
+      // Create a new organization based on the GitHub account
+      const slug = installation.account.login.toLowerCase().replace(/[^a-z0-9]/g, "-");
+      console.log(`[GitHub Webhook] No organization found, creating one: ${slug}`);
+
+      organization = await prisma.organization.create({
+        data: {
+          name: installation.account.login,
+          slug,
+        },
+      });
+
+      // Create default settings
+      await prisma.organizationSettings.create({
+        data: {
+          organizationId: organization.id,
+          requireDescription: true,
+          requireTicketLink: true,
+          minReviewers: 1,
+          blockMergeOnGaps: false,
+        },
+      });
+    }
+
+    console.log(`[GitHub Webhook] Linking installation to organization: ${organization.name} (${organization.id})`);
+
+    // Create or update the GitHub installation record
+    const gitHubInstallation = await prisma.gitHubInstallation.upsert({
+      where: { installationId: installation.id },
+      create: {
+        installationId: installation.id,
+        organizationId: organization.id,
+        accountLogin: installation.account.login,
+        accountType: installation.account.type,
+      },
+      update: {
+        organizationId: organization.id,
+        accountLogin: installation.account.login,
+        accountType: installation.account.type,
+      },
+    });
+
+    console.log(`[GitHub Webhook] GitHubInstallation saved: ${gitHubInstallation.id}`);
+
+    // Create repository records for each repo
+    if (repositories && repositories.length > 0) {
+      for (const repo of repositories) {
+        const repository = await prisma.repository.upsert({
+          where: { githubId: repo.id },
+          create: {
+            githubId: repo.id,
+            name: repo.name,
+            fullName: repo.full_name,
+            organizationId: organization.id,
+            gitHubInstallationId: gitHubInstallation.id,
+            isActive: true,
+            defaultBranch: repo.default_branch || "main",
+          },
+          update: {
+            name: repo.name,
+            fullName: repo.full_name,
+            gitHubInstallationId: gitHubInstallation.id,
+            defaultBranch: repo.default_branch || "main",
+          },
+        });
+
+        console.log(`[GitHub Webhook] Repository saved: ${repo.full_name} (${repository.id})`);
+      }
+    }
+
+    console.log(`[GitHub Webhook] Installation complete: ${repositories?.length || 0} repositories saved`);
+  } else if (action === "deleted") {
+    // Mark installation as inactive or delete it
+    console.log(`[GitHub Webhook] Installation deleted: ${installation.id}`);
+
+    // Optionally deactivate repositories
+    const gitHubInstallation = await prisma.gitHubInstallation.findUnique({
+      where: { installationId: installation.id },
+    });
+
+    if (gitHubInstallation) {
+      await prisma.repository.updateMany({
+        where: { gitHubInstallationId: gitHubInstallation.id },
+        data: { isActive: false },
+      });
+      console.log(`[GitHub Webhook] Repositories deactivated for installation: ${installation.id}`);
+    }
+  }
 }
 
 async function handleInstallationRepositories(data: InstallationWebhook) {
   const { action, installation, repositories } = data;
 
-  console.log(`Installation repositories ${action}:`, {
+  console.log(`[GitHub Webhook] Installation repositories ${action}:`, {
     installationId: installation.id,
     repositories: repositories?.map((r) => r.full_name),
   });
+
+  // Find the installation
+  const gitHubInstallation = await prisma.gitHubInstallation.findUnique({
+    where: { installationId: installation.id },
+  });
+
+  if (!gitHubInstallation) {
+    console.error(`[GitHub Webhook] Installation not found: ${installation.id}`);
+    return;
+  }
+
+  if (action === "added" && repositories) {
+    // Add new repositories
+    for (const repo of repositories) {
+      const repository = await prisma.repository.upsert({
+        where: { githubId: repo.id },
+        create: {
+          githubId: repo.id,
+          name: repo.name,
+          fullName: repo.full_name,
+          organizationId: gitHubInstallation.organizationId,
+          gitHubInstallationId: gitHubInstallation.id,
+          isActive: true,
+          defaultBranch: repo.default_branch || "main",
+        },
+        update: {
+          name: repo.name,
+          fullName: repo.full_name,
+          isActive: true,
+          defaultBranch: repo.default_branch || "main",
+        },
+      });
+
+      console.log(`[GitHub Webhook] Repository added: ${repo.full_name} (${repository.id})`);
+    }
+  } else if (action === "removed" && repositories) {
+    // Deactivate removed repositories
+    for (const repo of repositories) {
+      await prisma.repository.updateMany({
+        where: { githubId: repo.id },
+        data: { isActive: false },
+      });
+
+      console.log(`[GitHub Webhook] Repository deactivated: ${repo.full_name}`);
+    }
+  }
 }
 
-async function recalculateScore(derId: string) {
-  const der = await prisma.decisionEvidenceRecord.findUnique({
-    where: { id: derId },
-    include: {
-      reviews: true,
-      organization: { include: { settings: true } },
-      gaps: true,
-    },
-  });
 
-  if (!der) return;
+/**
+ * Run AI analysis on a DER and update the database
+ * This runs asynchronously to not block the webhook response
+ */
+async function runAIAnalysis(
+  derId: string,
+  installationId: number | undefined,
+  owner: string,
+  repoName: string,
+  prNumber: number,
+  headSha?: string
+): Promise<void> {
+  try {
+    // Get the DER with description
+    const der = await prisma.decisionEvidenceRecord.findUnique({
+      where: { id: derId },
+    });
 
-  const approvedCount = der.reviews.filter((r) => r.state === "APPROVED").length;
-
-  const scoreInput = {
-    hasDescription: !!der.description && der.description.length > 0,
-    descriptionLength: der.description?.length || 0,
-    ticketCount: der.ticketLinks.length,
-    reviewCount: der.reviews.length,
-    approvedReviewCount: approvedCount,
-    hasSlackContext: der.slackThreads.length > 0,
-  };
-
-  const newScore = calculateEvidenceScore(scoreInput);
-
-  // Determine new status based on score and gaps
-  let newStatus = der.status;
-  if (der.prState === "OPEN") {
-    if (newScore >= 75 && der.gaps.filter((g) => !g.resolved).length === 0) {
-      newStatus = "CONFIRMED";
-    } else if (newScore < 50 || der.gaps.filter((g) => !g.resolved).length > 0) {
-      newStatus = "NEEDS_REVIEW";
+    if (!der) {
+      console.log(`[AI Analysis] DER not found: ${derId}`);
+      return;
     }
+
+    // Try to get the list of changed files and full diff from GitHub
+    let filesChanged: string[] = [];
+    let diff: string | null = null;
+
+    if (installationId) {
+      try {
+        const octokit = await getInstallationOctokit(installationId);
+
+        // Get list of files changed with their patches
+        const { data: files } = await octokit.pulls.listFiles({
+          owner,
+          repo: repoName,
+          pull_number: prNumber,
+          per_page: 100,
+        });
+
+        filesChanged = files.map(f => f.filename);
+
+        // Build diff from file patches (more reliable than raw diff endpoint)
+        const diffParts: string[] = [];
+        let totalDiffLength = 0;
+        const maxDiffLength = 10000; // Limit total diff size
+
+        for (const file of files) {
+          if (file.patch && totalDiffLength < maxDiffLength) {
+            const fileDiff = `diff --git a/${file.filename} b/${file.filename}
+--- a/${file.filename}
++++ b/${file.filename}
+${file.patch}`;
+            diffParts.push(fileDiff);
+            totalDiffLength += fileDiff.length;
+          }
+        }
+
+        diff = diffParts.join("\n\n");
+
+        // If we have files but no patches, try to get the raw diff
+        if (filesChanged.length > 0 && !diff) {
+          try {
+            const { data: rawDiff } = await octokit.pulls.get({
+              owner,
+              repo: repoName,
+              pull_number: prNumber,
+              mediaType: { format: "diff" },
+            });
+            // rawDiff is a string when using diff format
+            diff = (rawDiff as unknown as string).substring(0, maxDiffLength);
+          } catch {
+            console.log("[AI Analysis] Could not fetch raw diff");
+          }
+        }
+
+        console.log(`[AI Analysis] Fetched ${filesChanged.length} files, diff length: ${diff?.length || 0}`);
+      } catch (error) {
+        console.error("[AI Analysis] Failed to fetch files from GitHub:", error);
+      }
+    }
+
+    console.log(`[AI Analysis] Analyzing PR #${prNumber} with ${filesChanged.length} files`);
+
+    // Run the AI analysis
+    const analysis = await analyzeChangeRisk(
+      der.prTitle,
+      der.description,
+      filesChanged,
+      diff
+    );
+
+    // Update the DER with AI analysis and files changed
+    const updatedDer = await prisma.decisionEvidenceRecord.update({
+      where: { id: derId },
+      data: {
+        aiDocQuality: analysis.documentationQuality,
+        aiIntentAlignment: analysis.intentAlignment,
+        aiAuditReadiness: analysis.auditReadiness,
+        aiMissingContext: analysis.missingContext || [],
+        aiSuggestions: analysis.suggestions || [],
+        aiSummary: analysis.summary,
+        filesChanged,
+        aiAnalyzedAt: new Date(),
+      },
+    });
+
+    console.log(`[AI Analysis] Updated DER ${derId}: docQuality=${analysis.documentationQuality}, intent=${analysis.intentAlignment}, auditReady=${analysis.auditReadiness}, files=${filesChanged.length}`);
+
+    // Update GitHub Check with AI analysis results
+    if (installationId && headSha) {
+      try {
+        const gaps = await getGapsForCheck(derId);
+        await updateEvidenceCheck({
+          installationId,
+          owner,
+          repo: repoName,
+          headSha,
+          prNumber,
+          derId,
+          evidenceScore: updatedDer.evidenceScore,
+          gaps,
+          prTitle: updatedDer.prTitle,
+          aiDocQuality: analysis.documentationQuality,
+          aiAuditReadiness: analysis.auditReadiness,
+        });
+        console.log(`[AI Analysis] Updated GitHub Check for PR #${prNumber} with AI results`);
+      } catch (checkError) {
+        console.error("[AI Analysis] Failed to update GitHub Check:", checkError);
+      }
+    }
+  } catch (error) {
+    console.error("[AI Analysis] Error:", error);
+    // Don't throw - we don't want to fail silently but also not crash
   }
-
-  // Update gaps based on current state
-  const settings = der.organization.settings;
-  if (settings) {
-    // Resolve approval gaps if we have enough approvals
-    if (approvedCount >= settings.minReviewers) {
-      await prisma.evidenceGap.updateMany({
-        where: { derId, type: "MISSING_APPROVAL", resolved: false },
-        data: { resolved: true, resolvedAt: new Date() },
-      });
-    }
-
-    // Resolve review gaps if we have reviews
-    if (der.reviews.length > 0) {
-      await prisma.evidenceGap.updateMany({
-        where: { derId, type: "MISSING_REVIEW", resolved: false },
-        data: { resolved: true, resolvedAt: new Date() },
-      });
-    }
-
-    // Resolve ticket gaps if we have tickets
-    if (der.ticketLinks.length > 0) {
-      await prisma.evidenceGap.updateMany({
-        where: { derId, type: "MISSING_TICKET", resolved: false },
-        data: { resolved: true, resolvedAt: new Date() },
-      });
-    }
-
-    // Resolve description gaps if we have description
-    if (der.description && der.description.length > 0) {
-      await prisma.evidenceGap.updateMany({
-        where: { derId, type: "MISSING_DESCRIPTION", resolved: false },
-        data: { resolved: true, resolvedAt: new Date() },
-      });
-    }
-  }
-
-  await prisma.decisionEvidenceRecord.update({
-    where: { id: derId },
-    data: {
-      evidenceScore: newScore,
-      status: newStatus,
-    },
-  });
 }

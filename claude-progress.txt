@@ -8,28 +8,33 @@ Current Focus: Project initialization
 
 ## COMPLETED
 
-(Starting fresh)
+1. [x] Initialize Turborepo monorepo
+2. [x] Create Next.js web app with TypeScript + Tailwind
+3. [x] Set up Prisma database package
+4. [x] Add shadcn/ui components
+5. [x] Configure Clerk authentication
+6. [x] Build dashboard shell with shadcn/ui
+7. [x] Create dashboard UI components
+8. [x] Create dashboard pages (list, detail views)
+9. [x] Set up tRPC API layer
+10. [x] Create GitHub webhook handler
+11. [x] Implement DER creation from PR events
+12. [x] Build evidence score calculator
+13. [x] Create Clerk webhook handler
 
 ---
 
 ## IN PROGRESS
 
-None - ready to begin
+None
 
 ---
 
 ## NEXT UP (Priority Order)
 
-1. [ ] Initialize Turborepo monorepo
-2. [ ] Create Next.js web app with TypeScript + Tailwind
-3. [ ] Set up Prisma database package
-4. [ ] Configure Clerk authentication
-5. [ ] Build dashboard shell with shadcn/ui
-6. [ ] Create GitHub webhook handler
-7. [ ] Implement DER creation from PR events
-8. [ ] Build evidence score calculator
-9. [ ] Create dashboard pages (list, detail views)
-10. [ ] Add PDF export
+1. [ ] Add PDF export
+2. [ ] Create organization onboarding flow
+3. [ ] Add activity feed
 
 ---
 
@@ -46,4 +51,43 @@ None - ready to begin
 
 ### Session 1 - 2026-02-03
 - Project setup files created
-- Ready to initialize monorepo
+- Initialized Turborepo monorepo structure
+- Created Next.js 16 app with TypeScript, Tailwind, App Router
+- Set up Prisma database package with complete DER schema
+- Added shadcn/ui components (button, card, badge, input, label, table, tabs, dialog, dropdown-menu, separator, skeleton, sonner)
+- Committed: "feat: initialize monorepo with Next.js, Prisma, shadcn/ui"
+- Added Clerk authentication with middleware protection
+- Created auth pages (sign-in, sign-up) with Clerk components
+- Built dashboard layout with sidebar nav, OrganizationSwitcher, UserButton
+- Created dashboard home page with stats cards and getting started guide
+- Committed: "feat: add Clerk authentication"
+- Created core UI components (StatsCard, EvidenceScoreBadge, GapAlert, DERCard)
+- Built collapsible sidebar with navigation
+- Created Records page with search, filters, pagination
+- Created Record detail page with score, gaps, evidence, reviews, timeline
+- Created Repositories management page
+- Created Reports analytics page
+- Created Settings page with evidence requirements
+- Added loading skeletons and error boundaries for all pages
+- Added Switch component from shadcn/ui
+- Committed: "feat: add dashboard UI components and pages"
+- Set up tRPC with context, protected/org procedures
+- Created routers: der, repository, settings
+- Created TRPCProvider with React Query integration
+- Created type-safe hooks (useDERs, useRepositories, useSettings)
+- Connected dashboard and settings pages to tRPC
+- Added @mergewhy/database workspace dependency
+- Committed: "feat: add tRPC API layer"
+- Created GitHub utilities (Octokit setup, installation auth)
+- Created evidence extractor (Jira, Linear, Slack, GitHub issues)
+- Created evidence score calculator (0-100 with breakdown)
+- Created gap detection logic with severity levels
+- Created GitHub webhook handler for PR events
+- Created GitHub callback handler for App installation
+- Added Octokit packages (@octokit/webhooks, @octokit/auth-app, @octokit/rest)
+- Committed: "feat: add GitHub App integration"
+- Created Clerk webhook handler at apps/web/src/app/api/webhooks/clerk/route.ts
+- Handles organization.created, user.created, organizationMembership.created events
+- Uses svix for webhook signature verification
+- Creates Organization + OrganizationSettings records
+- Creates User records when users join organizations

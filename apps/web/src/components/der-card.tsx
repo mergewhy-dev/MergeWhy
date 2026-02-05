@@ -25,12 +25,27 @@ interface DERCardProps {
   className?: string;
 }
 
-const statusStyles: Record<DERStatus, { variant: "default" | "secondary" | "outline" | "destructive"; label: string }> = {
-  PENDING: { variant: "secondary", label: "Pending" },
-  NEEDS_REVIEW: { variant: "outline", label: "Needs Review" },
-  CONFIRMED: { variant: "default", label: "Confirmed" },
-  COMPLETE: { variant: "default", label: "Complete" },
-  INCOMPLETE: { variant: "destructive", label: "Incomplete" },
+const statusStyles: Record<DERStatus, { className: string; label: string }> = {
+  PENDING: {
+    className: "bg-[#fef3c7] text-[#92400e] border-[#fcd34d]",
+    label: "Pending",
+  },
+  NEEDS_REVIEW: {
+    className: "bg-[#d4883a]/10 text-[#d4883a] border-[#d4883a]/20",
+    label: "Needs Review",
+  },
+  CONFIRMED: {
+    className: "bg-[#4a7c59]/10 text-[#4a7c59] border-[#4a7c59]/20",
+    label: "Confirmed",
+  },
+  COMPLETE: {
+    className: "bg-primary/10 text-primary border-primary/20",
+    label: "Complete",
+  },
+  INCOMPLETE: {
+    className: "bg-[#c45c5c]/10 text-[#c45c5c] border-[#c45c5c]/20",
+    label: "Incomplete",
+  },
 };
 
 function getRelativeTime(date: Date): string {
@@ -59,54 +74,67 @@ export function DERCard({
   const statusStyle = statusStyles[status];
 
   return (
-    <Card className={cn("hover:shadow-md transition-shadow", className)}>
+    <Card className={cn(
+      "group shadow-sm hover:shadow-md transition-all duration-200 border-border/50 hover:border-border",
+      className
+    )}>
       <CardContent className="p-4">
         <div className="flex gap-4">
           {/* Score */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 group-hover:scale-105 transition-transform duration-200">
             <EvidenceScoreBadge score={evidenceScore} size="sm" />
           </div>
 
           {/* Content */}
           <div className="flex-1 min-w-0">
             {/* Header */}
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <Link
                   href={`/records/${id}`}
-                  className="font-medium text-sm hover:underline line-clamp-1"
+                  className="font-medium text-sm hover:text-primary transition-colors line-clamp-1 group-hover:text-primary"
                 >
                   {prTitle}
                 </Link>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
                   <a
                     href={prUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors font-medium"
                   >
                     #{prNumber}
                     <ExternalLink className="w-3 h-3" />
                   </a>
-                  <span className="text-muted-foreground">·</span>
+                  <span className="text-border hidden sm:inline">·</span>
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <GitBranch className="w-3 h-3" />
                     {repositoryName}
                   </span>
                 </div>
               </div>
-              <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge>
+              <Badge
+                variant="outline"
+                className={cn("text-xs font-medium shrink-0 shadow-sm", statusStyle.className)}
+              >
+                {statusStyle.label}
+              </Badge>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center gap-3 mt-3">
+            <div className="flex items-center gap-3 mt-3 pt-2 border-t border-border/30">
               {gapCount > 0 && (
-                <span className="text-xs text-orange-600 flex items-center gap-1">
+                <span className="text-xs text-[#d4883a] flex items-center gap-1 font-medium bg-[#d4883a]/5 px-2 py-0.5 rounded-full">
                   <AlertTriangle className="w-3 h-3" />
                   {gapCount} gap{gapCount !== 1 ? "s" : ""}
                 </span>
               )}
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
+              {gapCount === 0 && evidenceScore >= 75 && (
+                <span className="text-xs text-[#4a7c59] flex items-center gap-1 font-medium bg-[#4a7c59]/5 px-2 py-0.5 rounded-full">
+                  No gaps
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground flex items-center gap-1 ml-auto">
                 <Clock className="w-3 h-3" />
                 {getRelativeTime(createdAt)}
               </span>

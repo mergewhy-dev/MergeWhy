@@ -11,115 +11,50 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DERCard } from "@/components/der-card";
-import { Search, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { Search, ChevronDown, ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { useDERs } from "@/hooks/use-ders";
+import { useRepositories } from "@/hooks/use-repositories";
 
-type StatusFilter = "all" | "pending" | "needs_review" | "complete";
-
-// Mock data - replace with real data
-const mockRecords = [
-  {
-    id: "1",
-    prNumber: 234,
-    prTitle: "Add user authentication with OAuth2 support",
-    prUrl: "https://github.com/acme/app/pull/234",
-    repositoryName: "acme/app",
-    evidenceScore: 85,
-    gapCount: 0,
-    status: "COMPLETE" as const,
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-  },
-  {
-    id: "2",
-    prNumber: 156,
-    prTitle: "Fix database connection pooling issues in production",
-    prUrl: "https://github.com/acme/backend/pull/156",
-    repositoryName: "acme/backend",
-    evidenceScore: 45,
-    gapCount: 2,
-    status: "NEEDS_REVIEW" as const,
-    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
-  },
-  {
-    id: "3",
-    prNumber: 89,
-    prTitle: "Refactor payment processing module for better performance",
-    prUrl: "https://github.com/acme/payments/pull/89",
-    repositoryName: "acme/payments",
-    evidenceScore: 72,
-    gapCount: 1,
-    status: "CONFIRMED" as const,
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-  },
-  {
-    id: "4",
-    prNumber: 445,
-    prTitle: "Update dependencies and security patches",
-    prUrl: "https://github.com/acme/app/pull/445",
-    repositoryName: "acme/app",
-    evidenceScore: 35,
-    gapCount: 3,
-    status: "PENDING" as const,
-    createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
-  },
-  {
-    id: "5",
-    prNumber: 201,
-    prTitle: "Add comprehensive logging for API endpoints",
-    prUrl: "https://github.com/acme/api/pull/201",
-    repositoryName: "acme/api",
-    evidenceScore: 92,
-    gapCount: 0,
-    status: "COMPLETE" as const,
-    createdAt: new Date(Date.now() - 72 * 60 * 60 * 1000),
-  },
-  {
-    id: "6",
-    prNumber: 88,
-    prTitle: "Implement rate limiting for public endpoints",
-    prUrl: "https://github.com/acme/api/pull/88",
-    repositoryName: "acme/api",
-    evidenceScore: 28,
-    gapCount: 4,
-    status: "INCOMPLETE" as const,
-    createdAt: new Date(Date.now() - 96 * 60 * 60 * 1000),
-  },
-];
-
-const repositories = ["All Repositories", "acme/app", "acme/backend", "acme/payments", "acme/api"];
+type StatusFilter = "all" | "PENDING" | "NEEDS_REVIEW" | "COMPLETE";
 
 export default function RecordsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [selectedRepo, setSelectedRepo] = useState("All Repositories");
-  const [page, setPage] = useState(1);
-  const perPage = 10;
+  const [selectedRepoId, setSelectedRepoId] = useState<string | undefined>(undefined);
 
-  const filteredRecords = mockRecords.filter((record) => {
-    const matchesSearch =
-      record.prTitle.toLowerCase().includes(search.toLowerCase()) ||
-      record.prNumber.toString().includes(search);
+  // Fetch repositories for the dropdown
+  const { data: repositories } = useRepositories();
 
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "pending" && record.status === "PENDING") ||
-      (statusFilter === "needs_review" && record.status === "NEEDS_REVIEW") ||
-      (statusFilter === "complete" && (record.status === "COMPLETE" || record.status === "CONFIRMED"));
-
-    const matchesRepo =
-      selectedRepo === "All Repositories" || record.repositoryName === selectedRepo;
-
-    return matchesSearch && matchesStatus && matchesRepo;
+  // Fetch records with filters
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useDERs({
+    status: statusFilter === "all" ? undefined : statusFilter,
+    repositoryId: selectedRepoId,
+    search: search || undefined,
   });
 
-  const totalPages = Math.ceil(filteredRecords.length / perPage);
-  const paginatedRecords = filteredRecords.slice((page - 1) * perPage, page * perPage);
+  // Flatten pages into a single array of records
+  const records = data?.pages.flatMap((page) => page.records) ?? [];
+
+  // Get selected repo name for display
+  const selectedRepoName = selectedRepoId
+    ? repositories?.find((r) => r.id === selectedRepoId)?.fullName
+    : "All Repositories";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Records</h2>
-        <p className="text-muted-foreground">
+        <h2 className="text-2xl font-serif font-bold tracking-tight">Records</h2>
+        <p className="text-muted-foreground mt-1">
           Browse and manage Decision Evidence Records.
         </p>
       </div>
@@ -133,25 +68,29 @@ export default function RecordsPage() {
             placeholder="Search by title or PR number..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="pl-9 shadow-sm"
           />
         </div>
 
         {/* Repository filter */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="w-full sm:w-auto justify-between">
-              {selectedRepo}
-              <ChevronDown className="w-4 h-4 ml-2" />
+            <Button variant="outline" className="w-full sm:w-auto justify-between min-w-[200px] shadow-sm">
+              <span className="truncate">{selectedRepoName}</span>
+              <ChevronDown className="w-4 h-4 ml-2 flex-shrink-0" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {repositories.map((repo) => (
+          <DropdownMenuContent align="end" className="w-[200px] shadow-lg">
+            <DropdownMenuItem onClick={() => setSelectedRepoId(undefined)} className="cursor-pointer">
+              All Repositories
+            </DropdownMenuItem>
+            {repositories?.map((repo) => (
               <DropdownMenuItem
-                key={repo}
-                onClick={() => setSelectedRepo(repo)}
+                key={repo.id}
+                onClick={() => setSelectedRepoId(repo.id)}
+                className="cursor-pointer"
               >
-                {repo}
+                {repo.fullName}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -160,56 +99,100 @@ export default function RecordsPage() {
 
       {/* Status tabs */}
       <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-        <TabsList>
+        <TabsList className="shadow-sm">
           <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="needs_review">Needs Review</TabsTrigger>
-          <TabsTrigger value="complete">Complete</TabsTrigger>
+          <TabsTrigger value="PENDING">Pending</TabsTrigger>
+          <TabsTrigger value="NEEDS_REVIEW">Needs Review</TabsTrigger>
+          <TabsTrigger value="COMPLETE">Complete</TabsTrigger>
         </TabsList>
       </Tabs>
 
-      {/* Records list */}
-      {paginatedRecords.length > 0 ? (
+      {/* Loading state */}
+      {isLoading && (
         <div className="space-y-3">
-          {paginatedRecords.map((record) => (
-            <DERCard key={record.id} {...record} />
+          {[...Array(5)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="space-y-3">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-6 w-16" />
+                    <Skeleton className="h-6 w-20" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           ))}
-        </div>
-      ) : (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No records found matching your filters.</p>
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {(page - 1) * perPage + 1} to{" "}
-            {Math.min(page * perPage, filteredRecords.length)} of {filteredRecords.length} records
+      {/* Error state */}
+      {error && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">
+            {error.message || "Failed to load records. Please select an organization."}
           </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(page - 1)}
-              disabled={page === 1}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <span className="text-sm">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(page + 1)}
-              disabled={page === totalPages}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
         </div>
+      )}
+
+      {/* Records list */}
+      {!isLoading && !error && records.length > 0 && (
+        <div className="space-y-3">
+          {records.map((record) => (
+            <DERCard
+              key={record.id}
+              id={record.id}
+              prNumber={record.prNumber}
+              prTitle={record.prTitle}
+              prUrl={record.prUrl}
+              repositoryName={record.repository.fullName}
+              evidenceScore={record.evidenceScore}
+              gapCount={record.gaps.length}
+              status={record.status}
+              createdAt={new Date(record.createdAt)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && !error && records.length === 0 && (
+        <div className="text-center py-12">
+          <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">No records yet</h3>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Decision Evidence Records will appear here when pull requests are opened
+            in your connected repositories.
+          </p>
+        </div>
+      )}
+
+      {/* Load more */}
+      {hasNextPage && (
+        <div className="flex justify-center pt-4">
+          <Button
+            variant="outline"
+            onClick={() => fetchNextPage()}
+            disabled={isFetchingNextPage}
+          >
+            {isFetchingNextPage ? (
+              "Loading..."
+            ) : (
+              <>
+                Load More
+                <ChevronDown className="w-4 h-4 ml-2" />
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Record count */}
+      {!isLoading && !error && records.length > 0 && (
+        <p className="text-sm text-muted-foreground text-center">
+          Showing {records.length} record{records.length !== 1 ? "s" : ""}
+        </p>
       )}
     </div>
   );

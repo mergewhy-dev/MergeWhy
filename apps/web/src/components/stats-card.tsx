@@ -25,28 +25,37 @@ export function StatsCard({
     trend?.value === 0 ? "neutral" : trend?.value && trend.value > 0 ? "up" : "down";
 
   return (
-    <Card className={cn("", className)}>
+    <Card
+      className={cn(
+        "bg-white border-border/50 transition-all duration-200 hover:shadow-md hover:border-border group",
+        className
+      )}
+      style={{
+        boxShadow: "0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)",
+      }}
+    >
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold">{value}</p>
+            <p className="text-3xl font-semibold tabular-nums tracking-tight">{value}</p>
             {trend && (
-              <div className="flex items-center gap-1 text-xs">
+              <div className="flex items-center gap-1.5 text-xs">
                 {trendDirection === "up" && (
-                  <TrendingUp className="w-3 h-3 text-green-600" />
+                  <TrendingUp className="w-3.5 h-3.5 text-[#4a7c59]" />
                 )}
                 {trendDirection === "down" && (
-                  <TrendingDown className="w-3 h-3 text-red-600" />
+                  <TrendingDown className="w-3.5 h-3.5 text-[#c45c5c]" />
                 )}
                 {trendDirection === "neutral" && (
-                  <Minus className="w-3 h-3 text-gray-400" />
+                  <Minus className="w-3.5 h-3.5 text-muted-foreground" />
                 )}
                 <span
                   className={cn(
-                    trendDirection === "up" && "text-green-600",
-                    trendDirection === "down" && "text-red-600",
-                    trendDirection === "neutral" && "text-gray-500"
+                    "font-medium",
+                    trendDirection === "up" && "text-[#4a7c59]",
+                    trendDirection === "down" && "text-[#c45c5c]",
+                    trendDirection === "neutral" && "text-muted-foreground"
                   )}
                 >
                   {trend.value > 0 ? "+" : ""}
@@ -59,8 +68,11 @@ export function StatsCard({
             )}
           </div>
           {Icon && (
-            <div className="p-3 bg-slate-100 rounded-lg">
-              <Icon className="w-5 h-5 text-slate-600" />
+            <div
+              className="p-3 rounded-xl transition-transform group-hover:scale-105"
+              style={{ backgroundColor: "rgba(212, 168, 83, 0.12)" }}
+            >
+              <Icon className="w-6 h-6" style={{ color: "#d4a853" }} />
             </div>
           )}
         </div>

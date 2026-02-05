@@ -34,3 +34,59 @@ export function useDERStats() {
 export function useNeedsAttention() {
   return trpc.der.getNeedsAttention.useQuery();
 }
+
+export function useGenerateAuditSummary() {
+  const utils = trpc.useUtils();
+  return trpc.der.generateAuditSummary.useMutation({
+    onSuccess: () => {
+      utils.der.getById.invalidate();
+    },
+  });
+}
+
+export function useReanalyzeRisk() {
+  const utils = trpc.useUtils();
+  return trpc.der.reanalyzeRisk.useMutation({
+    onSuccess: () => {
+      utils.der.getById.invalidate();
+      utils.der.list.invalidate();
+      utils.der.getStats.invalidate();
+    },
+  });
+}
+
+export function useRecalculateScore() {
+  const utils = trpc.useUtils();
+  return trpc.der.recalculateScore.useMutation({
+    onSuccess: () => {
+      utils.der.getById.invalidate();
+      utils.der.list.invalidate();
+      utils.der.getStats.invalidate();
+    },
+  });
+}
+
+// Evidence Vault hooks
+
+export function useVault(derId: string) {
+  return trpc.der.getVault.useQuery({ derId }, { enabled: !!derId });
+}
+
+export function useVaultSummary(derId: string) {
+  return trpc.der.getVaultSummary.useQuery({ derId }, { enabled: !!derId });
+}
+
+export function useVerifyVault() {
+  return trpc.der.verifyVault.useMutation();
+}
+
+export function useCreateVault() {
+  const utils = trpc.useUtils();
+  return trpc.der.createVault.useMutation({
+    onSuccess: (_, variables) => {
+      utils.der.getById.invalidate({ id: variables.derId });
+      utils.der.getVault.invalidate({ derId: variables.derId });
+      utils.der.getVaultSummary.invalidate({ derId: variables.derId });
+    },
+  });
+}

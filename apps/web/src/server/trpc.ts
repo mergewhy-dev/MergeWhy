@@ -5,6 +5,7 @@ import { prisma } from "@mergewhy/database";
 
 export const createTRPCContext = async () => {
   const { userId, orgId } = await auth();
+  console.log("[tRPC Context]", { userId, orgId });
   return { prisma, userId, orgId };
 };
 
