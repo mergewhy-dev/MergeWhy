@@ -140,3 +140,5 @@ vite.config.ts.timestamp-*
 
 # Turbo
 .turbo
+.vercel
+.env*.local

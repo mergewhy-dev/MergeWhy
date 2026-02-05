@@ -156,7 +156,7 @@ export default function RecordDetailPage({ params }: PageProps) {
   if (error) {
     return (
       <div className="space-y-6">
-        <Link href="/records">
+        <Link href="/dashboard/records">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back to Records
@@ -177,7 +177,7 @@ export default function RecordDetailPage({ params }: PageProps) {
   if (!record) {
     return (
       <div className="space-y-6">
-        <Link href="/records">
+        <Link href="/dashboard/records">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back to Records
@@ -218,9 +218,9 @@ export default function RecordDetailPage({ params }: PageProps) {
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/" className="hover:text-foreground transition-colors">Dashboard</Link>
+        <Link href="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link>
         <span>/</span>
-        <Link href="/records" className="hover:text-foreground transition-colors">Records</Link>
+        <Link href="/dashboard/records" className="hover:text-foreground transition-colors">Records</Link>
         <span>/</span>
         <span className="text-foreground font-medium">#{record.prNumber}</span>
       </nav>
@@ -229,7 +229,7 @@ export default function RecordDetailPage({ params }: PageProps) {
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-            <Link href="/records">
+            <Link href="/dashboard/records">
               <Button variant="outline" size="sm" className="shadow-sm hover:shadow transition-shadow">
                 <ArrowLeft className="w-4 h-4 mr-1.5" />
                 Back

@@ -236,7 +236,7 @@ function ComplianceStatusSection() {
               Enable compliance frameworks in settings to track compliance.
             </p>
             <Link
-              href="/settings"
+              href="/dashboard/settings"
               className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-3"
             >
               <Settings className="w-3 h-3" />

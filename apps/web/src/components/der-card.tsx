@@ -91,7 +91,7 @@ export function DERCard({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <Link
-                  href={`/records/${id}`}
+                  href={`/dashboard/records/${id}`}
                   className="font-medium text-sm hover:text-primary transition-colors line-clamp-1 group-hover:text-primary"
                 >
                   {prTitle}

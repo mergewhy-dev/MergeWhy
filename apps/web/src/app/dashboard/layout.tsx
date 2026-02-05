@@ -17,11 +17,11 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Records", href: "/records", icon: FileText },
-  { name: "Repositories", href: "/repositories", icon: GitBranch },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Records", href: "/dashboard/records", icon: FileText },
+  { name: "Repositories", href: "/dashboard/repositories", icon: GitBranch },
+  { name: "Reports", href: "/dashboard/reports", icon: BarChart3 },
+  { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 export default function DashboardLayout({
@@ -33,7 +33,7 @@ export default function DashboardLayout({
   const [collapsed, setCollapsed] = useState(false);
 
   const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
+    if (href === "/dashboard") return pathname === "/dashboard";
     return pathname.startsWith(href);
   };
 
@@ -49,7 +49,7 @@ export default function DashboardLayout({
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center h-16 px-4 border-b border-sidebar-border">
-            <Link href="/" className="flex items-center gap-3">
+            <Link href="/dashboard" className="flex items-center gap-3">
               <div className="w-9 h-9 bg-amber rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
                 <span className="text-primary font-bold text-sm">MW</span>
               </div>
