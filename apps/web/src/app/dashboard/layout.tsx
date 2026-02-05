@@ -133,6 +133,7 @@ export default function DashboardLayout({
               )}
             >
               <SafeUserButton
+                afterSignOutUrl="/"
                 appearance={{
                   elements: {
                     avatarBox: "w-9 h-9 ring-2 ring-sidebar-accent",
