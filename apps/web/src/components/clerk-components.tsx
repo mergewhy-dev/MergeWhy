@@ -1,6 +1,6 @@
 "use client";
 
-import { UserButton, OrganizationSwitcher, useClerk } from "@clerk/nextjs";
+import { UserButton, OrganizationSwitcher } from "@clerk/nextjs";
 import { User } from "lucide-react";
 
 function hasValidClerkKeys(): boolean {
@@ -14,9 +14,10 @@ interface SafeUserButtonProps {
       avatarBox?: string;
     };
   };
+  afterSignOutUrl?: string;
 }
 
-export function SafeUserButton({ appearance }: SafeUserButtonProps) {
+export function SafeUserButton({ appearance, afterSignOutUrl = "/" }: SafeUserButtonProps) {
   if (!hasValidClerkKeys()) {
     return (
       <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
@@ -25,7 +26,12 @@ export function SafeUserButton({ appearance }: SafeUserButtonProps) {
     );
   }
 
-  return <UserButton appearance={appearance} />;
+  return (
+    <UserButton
+      appearance={appearance}
+      afterSignOutUrl={afterSignOutUrl}
+    />
+  );
 }
 
 interface SafeOrganizationSwitcherProps {
