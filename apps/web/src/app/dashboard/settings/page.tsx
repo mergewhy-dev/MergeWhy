@@ -19,9 +19,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Link2, Shield, ShieldCheck, CheckCircle2, Terminal } from "lucide-react";
+import { Users, Link2, Shield, ShieldCheck, CheckCircle2, Terminal, Github, ExternalLink } from "lucide-react";
 import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 import { useFrameworks, useOrganizationFrameworks, useEnableFramework, useDisableFramework } from "@/hooks/use-compliance";
+import { useRepositoryStats } from "@/hooks/use-repositories";
+import { ConnectGitHub, GitHubConnectionStatus } from "@/components/connect-github";
 import { toast } from "sonner";
 
 function ComplianceFrameworksSection() {
@@ -347,6 +349,94 @@ function SettingsForm() {
   );
 }
 
+function IntegrationsSection() {
+  const { data: repoStats, isLoading } = useRepositoryStats();
+
+  const isGitHubConnected = !!(repoStats && repoStats.total > 0);
+  const repositoryCount = repoStats?.total || 0;
+
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="bg-gradient-to-r from-[#24292f]/5 to-transparent">
+        <CardTitle className="flex items-center gap-2">
+          <div className="p-1.5 bg-[#24292f]/10 rounded-lg">
+            <Link2 className="w-4 h-4 text-[#24292f]" />
+          </div>
+          Integrations
+        </CardTitle>
+        <CardDescription>
+          Connect your tools to capture richer decision evidence.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 pt-4">
+        {/* GitHub Integration */}
+        {isLoading ? (
+          <Skeleton className="h-20 w-full rounded-xl" />
+        ) : (
+          <GitHubConnectionStatus
+            isConnected={isGitHubConnected}
+            installationCount={repositoryCount}
+          />
+        )}
+
+        {/* Jira - Coming Soon */}
+        <div className="flex items-center justify-between p-4 border rounded-xl opacity-60">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-[#0052CC] rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">J</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="font-medium">Jira</p>
+                <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Link tickets to pull requests
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Linear - Coming Soon */}
+        <div className="flex items-center justify-between p-4 border rounded-xl opacity-60">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-[#5E6AD2] rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">L</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="font-medium">Linear</p>
+                <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Connect issues and projects
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Slack - Coming Soon */}
+        <div className="flex items-center justify-between p-4 border rounded-xl opacity-60">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-[#4A154B] rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">S</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="font-medium">Slack</p>
+                <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Capture decision discussions
+              </p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -368,74 +458,7 @@ export default function SettingsPage() {
           <SettingsForm />
 
           {/* Integrations */}
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <div className="p-1.5 bg-primary/10 rounded-lg">
-                  <Link2 className="w-4 h-4 text-primary" />
-                </div>
-                Integrations
-              </CardTitle>
-              <CardDescription>
-                Connect external services for enhanced evidence collection.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-medium">GitHub</p>
-                    <p className="text-sm text-muted-foreground">Pull requests and reviews</p>
-                  </div>
-                </div>
-                <Badge variant="default">Connected</Badge>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">J</span>
-                  </div>
-                  <div>
-                    <p className="font-medium">Jira</p>
-                    <p className="text-sm text-muted-foreground">Issue tracking</p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm">Connect</Button>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">L</span>
-                  </div>
-                  <div>
-                    <p className="font-medium">Linear</p>
-                    <p className="text-sm text-muted-foreground">Issue tracking</p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm">Connect</Button>
-              </div>
-
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-[#4A154B] rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">S</span>
-                  </div>
-                  <div>
-                    <p className="font-medium">Slack</p>
-                    <p className="text-sm text-muted-foreground">Linked thread context</p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm">Connect</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <IntegrationsSection />
         </div>
 
         {/* Sidebar */}

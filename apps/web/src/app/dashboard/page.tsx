@@ -6,6 +6,7 @@ import { StatsCard } from "@/components/stats-card";
 import { DERCard } from "@/components/der-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   FileText,
   AlertTriangle,
@@ -17,9 +18,14 @@ import {
   Settings,
   ArrowRight,
   CheckCircle2,
+  Github,
+  Rocket,
+  ExternalLink,
 } from "lucide-react";
 import { useDERStats, useNeedsAttention } from "@/hooks/use-ders";
 import { useComplianceStatus } from "@/hooks/use-compliance";
+import { useRepositoryStats } from "@/hooks/use-repositories";
+import { ConnectGitHub } from "@/components/connect-github";
 import { cn } from "@/lib/utils";
 
 function StatsSection() {
@@ -387,7 +393,69 @@ function ComplianceStatusSection() {
   );
 }
 
+function GetStartedSection() {
+  return (
+    <Card className="premium-card overflow-hidden border-2 border-dashed border-amber/30 bg-gradient-to-br from-amber/5 via-transparent to-primary/5">
+      <CardContent className="p-8">
+        <div className="flex flex-col lg:flex-row items-center gap-8">
+          {/* Icon */}
+          <div className="flex-shrink-0">
+            <div className="w-20 h-20 bg-gradient-to-br from-amber to-amber-light rounded-2xl flex items-center justify-center shadow-lg">
+              <Rocket className="w-10 h-10 text-primary" />
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 text-center lg:text-left">
+            <h3 className="text-2xl font-serif font-bold text-foreground mb-2">
+              Get Started with MergeWhy
+            </h3>
+            <p className="text-muted-foreground mb-6 max-w-xl">
+              Connect your GitHub repositories to start capturing decision evidence
+              from your pull requests. MergeWhy will automatically analyze PRs and
+              build your compliance audit trail.
+            </p>
+
+            {/* Steps */}
+            <div className="flex flex-wrap gap-4 mb-6 justify-center lg:justify-start">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">1</div>
+                <span>Connect GitHub</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center font-semibold text-xs">2</div>
+                <span>Select repositories</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center font-semibold text-xs">3</div>
+                <span>See evidence captured</span>
+              </div>
+            </div>
+
+            {/* CTA */}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+              <ConnectGitHub size="lg" className="px-8">
+                <Github className="w-5 h-5 mr-2" />
+                Connect GitHub
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </ConnectGitHub>
+              <Button variant="outline" size="lg" asChild>
+                <Link href="/docs/getting-started">
+                  Learn More
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function DashboardPage() {
+  const { data: repoStats, isLoading: repoStatsLoading } = useRepositoryStats();
+  const hasRepositories = repoStats && repoStats.total > 0;
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Welcome section */}
@@ -399,6 +467,9 @@ export default function DashboardPage() {
           Overview of your decision evidence records and compliance status.
         </p>
       </div>
+
+      {/* Get Started - show when no repos connected */}
+      {!repoStatsLoading && !hasRepositories && <GetStartedSection />}
 
       {/* Stats overview */}
       <StatsSection />
