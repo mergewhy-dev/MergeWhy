@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +10,7 @@ import {
   ExternalLink,
   AlertTriangle,
   Clock,
+  CheckCircle2,
 } from "lucide-react";
 
 type DERStatus = "PENDING" | "NEEDS_REVIEW" | "CONFIRMED" | "COMPLETE" | "INCOMPLETE";
@@ -25,25 +28,27 @@ interface DERCardProps {
   className?: string;
 }
 
-const statusStyles: Record<DERStatus, { className: string; label: string }> = {
+const statusStyles: Record<DERStatus, { className: string; label: string; icon?: React.ReactNode }> = {
   PENDING: {
-    className: "bg-[#fef3c7] text-[#92400e] border-[#fcd34d]",
+    className: "bg-warning/10 text-warning border-warning/30",
     label: "Pending",
   },
   NEEDS_REVIEW: {
-    className: "bg-[#d4883a]/10 text-[#d4883a] border-[#d4883a]/20",
+    className: "bg-warning/10 text-warning border-warning/30",
     label: "Needs Review",
   },
   CONFIRMED: {
-    className: "bg-[#4a7c59]/10 text-[#4a7c59] border-[#4a7c59]/20",
+    className: "bg-success/10 text-success border-success/30",
     label: "Confirmed",
+    icon: <CheckCircle2 className="w-3 h-3" />,
   },
   COMPLETE: {
-    className: "bg-primary/10 text-primary border-primary/20",
+    className: "bg-success/10 text-success border-success/30",
     label: "Complete",
+    icon: <CheckCircle2 className="w-3 h-3" />,
   },
   INCOMPLETE: {
-    className: "bg-[#c45c5c]/10 text-[#c45c5c] border-[#c45c5c]/20",
+    className: "bg-error/10 text-error border-error/30",
     label: "Incomplete",
   },
 };
@@ -59,6 +64,12 @@ function getRelativeTime(date: Date): string {
   return date.toLocaleDateString();
 }
 
+function getSeverityBorderStyle(evidenceScore: number): { borderColor: string } {
+  if (evidenceScore <= 40) return { borderColor: "#c45c5c" }; // error/red
+  if (evidenceScore <= 70) return { borderColor: "#d4883a" }; // warning/amber
+  return { borderColor: "#4a7c59" }; // success/green
+}
+
 export function DERCard({
   id,
   prNumber,
@@ -72,16 +83,26 @@ export function DERCard({
   className,
 }: DERCardProps) {
   const statusStyle = statusStyles[status];
+  const severityStyle = getSeverityBorderStyle(evidenceScore);
 
   return (
-    <Card className={cn(
-      "group shadow-sm hover:shadow-md transition-all duration-200 border-border/50 hover:border-border",
-      className
-    )}>
+    <Card
+      className={cn(
+        "group overflow-hidden transition-all duration-200",
+        "border border-border/40 rounded-xl",
+        "hover:shadow-md hover:border-border/60 hover:-translate-y-0.5",
+        className
+      )}
+      style={{
+        background: "linear-gradient(135deg, #ffffff 0%, #faf9f7 100%)",
+        borderLeftWidth: "4px",
+        borderLeftColor: severityStyle.borderColor,
+      }}
+    >
       <CardContent className="p-4">
         <div className="flex gap-4">
           {/* Score */}
-          <div className="flex-shrink-0 group-hover:scale-105 transition-transform duration-200">
+          <div className="flex-shrink-0 transition-transform duration-200 group-hover:scale-105">
             <EvidenceScoreBadge score={evidenceScore} size="sm" />
           </div>
 
@@ -92,7 +113,7 @@ export function DERCard({
               <div className="min-w-0">
                 <Link
                   href={`/dashboard/records/${id}`}
-                  className="font-medium text-sm hover:text-primary transition-colors line-clamp-1 group-hover:text-primary"
+                  className="font-semibold text-sm hover:text-primary transition-colors line-clamp-1 group-hover:text-primary"
                 >
                   {prTitle}
                 </Link>
@@ -115,8 +136,12 @@ export function DERCard({
               </div>
               <Badge
                 variant="outline"
-                className={cn("text-xs font-medium shrink-0 shadow-sm", statusStyle.className)}
+                className={cn(
+                  "text-xs font-semibold shrink-0 flex items-center gap-1",
+                  statusStyle.className
+                )}
               >
+                {statusStyle.icon}
                 {statusStyle.label}
               </Badge>
             </div>
@@ -124,13 +149,14 @@ export function DERCard({
             {/* Footer */}
             <div className="flex items-center gap-3 mt-3 pt-2 border-t border-border/30">
               {gapCount > 0 && (
-                <span className="text-xs text-[#d4883a] flex items-center gap-1 font-medium bg-[#d4883a]/5 px-2 py-0.5 rounded-full">
+                <span className="text-xs text-warning flex items-center gap-1 font-semibold bg-warning/10 px-2.5 py-1 rounded-full">
                   <AlertTriangle className="w-3 h-3" />
                   {gapCount} gap{gapCount !== 1 ? "s" : ""}
                 </span>
               )}
               {gapCount === 0 && evidenceScore >= 75 && (
-                <span className="text-xs text-[#4a7c59] flex items-center gap-1 font-medium bg-[#4a7c59]/5 px-2 py-0.5 rounded-full">
+                <span className="text-xs text-success flex items-center gap-1 font-semibold bg-success/10 px-2.5 py-1 rounded-full">
+                  <CheckCircle2 className="w-3 h-3" />
                   No gaps
                 </span>
               )}

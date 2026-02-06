@@ -39,6 +39,8 @@ interface SafeOrganizationSwitcherProps {
     elements?: {
       rootBox?: string;
       organizationSwitcherTrigger?: string;
+      organizationPreview?: string;
+      organizationPreviewTextContainer?: string;
     };
   };
 }
@@ -46,8 +48,11 @@ interface SafeOrganizationSwitcherProps {
 export function SafeOrganizationSwitcher({ appearance }: SafeOrganizationSwitcherProps) {
   if (!hasValidClerkKeys()) {
     return (
-      <div className="px-3 py-2 text-sm text-muted-foreground border rounded-lg">
-        Organization
+      <div className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] text-sm bg-sidebar-accent/50 text-sidebar-foreground rounded-lg border border-sidebar-border/50">
+        <div className="w-6 h-6 rounded bg-amber/80 flex items-center justify-center text-xs font-bold text-sidebar">
+          O
+        </div>
+        <span className="truncate flex-1">Organization</span>
       </div>
     );
   }
