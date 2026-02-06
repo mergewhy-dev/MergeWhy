@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import {
   FileText,
   Github,
   Check,
-  X,
+  X as XIcon,
   Minus,
   ChevronRight,
   ChevronDown,
@@ -45,6 +46,7 @@ import {
   RefreshCw,
   Bot,
   Hash,
+  RotateCcw,
 } from "lucide-react";
 
 // Intersection Observer hook for scroll animations
@@ -141,10 +143,285 @@ function EvidenceScoreRing({ score, size = "lg" }: { score: number; size?: "sm" 
   );
 }
 
+// ============ ANIMATED DEMO COMPONENT ============
+const SCENE_DURATIONS = [3000, 3000, 4000, 3000, 6000, 6000, 4000, 4000, 4000];
+
+function AnimatedDemo({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [currentScene, setCurrentScene] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCurrentScene(0);
+      setIsPlaying(true);
+      return;
+    }
+
+    if (!isPlaying || currentScene >= SCENE_DURATIONS.length) return;
+
+    const timer = setTimeout(() => {
+      setCurrentScene((prev) => prev + 1);
+    }, SCENE_DURATIONS[currentScene]);
+
+    return () => clearTimeout(timer);
+  }, [currentScene, isPlaying, isOpen]);
+
+  const restart = () => {
+    setCurrentScene(0);
+    setIsPlaying(true);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[100] bg-[#0f172a] text-white overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      {/* Close button */}
+      <button
+        onClick={onClose}
+        className="fixed top-6 right-6 z-[110] p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+      >
+        <XIcon className="w-6 h-6" />
+      </button>
+
+      <AnimatePresence mode="wait">
+        {currentScene === 0 && <DemoScene1 key="scene1" />}
+        {currentScene === 1 && <DemoScene2 key="scene2" />}
+        {currentScene === 2 && <DemoScene3 key="scene3" />}
+        {currentScene === 3 && <DemoScene4 key="scene4" />}
+        {currentScene === 4 && <DemoScene5 key="scene5" />}
+        {currentScene === 5 && <DemoScene6 key="scene6" />}
+        {currentScene === 6 && <DemoScene7 key="scene7" />}
+        {currentScene === 7 && <DemoScene8 key="scene8" />}
+        {currentScene === 8 && <DemoScene9 key="scene9" />}
+        {currentScene >= 9 && <DemoEndScreen key="end" onRestart={restart} onClose={onClose} />}
+      </AnimatePresence>
+
+      {/* Progress bar */}
+      <div className="fixed bottom-0 left-0 right-0 h-1 bg-white/10">
+        <motion.div
+          className="h-full bg-[#c9a227]"
+          initial={{ width: "0%" }}
+          animate={{ width: `${((currentScene + 1) / 9) * 100}%` }}
+          transition={{ duration: 0.5 }}
+        />
+      </div>
+
+      {/* Scene indicator */}
+      <div className="fixed bottom-6 right-6 text-white/40 text-sm font-mono">
+        {currentScene < 9 ? `${currentScene + 1}/9` : "End"}
+      </div>
+    </motion.div>
+  );
+}
+
+function DemoScene1() {
+  return (
+    <motion.div className="h-full flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.8 }}>
+      <motion.h1 className="text-4xl md:text-6xl font-serif text-center max-w-4xl px-8 leading-tight" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 1 }}>
+        Every engineering team makes <span className="text-[#c9a227]">thousands</span> of decisions...
+      </motion.h1>
+    </motion.div>
+  );
+}
+
+function DemoScene2() {
+  return (
+    <motion.div className="h-full flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.8 }}>
+      <motion.h1 className="text-4xl md:text-6xl font-serif text-center max-w-4xl px-8 leading-tight" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 1 }}>
+        But 6 months later, <span className="text-[#c45c5c]">no one remembers WHY.</span>
+      </motion.h1>
+    </motion.div>
+  );
+}
+
+function DemoScene3() {
+  return (
+    <motion.div className="h-full flex flex-col items-center justify-center gap-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
+      <motion.p className="text-xl text-white/60 mb-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>The cost of lost context:</motion.p>
+      <div className="flex flex-col md:flex-row gap-6">
+        <motion.div className="bg-[#c45c5c]/20 border border-[#c45c5c]/40 rounded-2xl p-8 min-w-[320px]" initial={{ opacity: 0, x: -100 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5, duration: 0.8, type: "spring" }}>
+          <div className="flex items-center gap-3 mb-4"><AlertTriangle className="w-8 h-8 text-[#c45c5c]" /><span className="text-lg font-semibold">Knight Capital</span></div>
+          <p className="text-5xl font-bold text-[#c45c5c] mb-2">$440M</p>
+          <p className="text-white/60">Lost in 45 minutes</p>
+        </motion.div>
+        <motion.div className="bg-[#c45c5c]/20 border border-[#c45c5c]/40 rounded-2xl p-8 min-w-[320px]" initial={{ opacity: 0, x: 100 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.8, duration: 0.8, type: "spring" }}>
+          <div className="flex items-center gap-3 mb-4"><AlertTriangle className="w-8 h-8 text-[#c45c5c]" /><span className="text-lg font-semibold">CrowdStrike</span></div>
+          <p className="text-5xl font-bold text-[#c45c5c] mb-2">8.5M</p>
+          <p className="text-white/60">Devices crashed</p>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+}
+
+function DemoScene4() {
+  return (
+    <motion.div className="h-full flex flex-col items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
+      <motion.div className="w-20 h-20 bg-gradient-to-br from-[#c9a227] to-[#e4bc73] rounded-2xl flex items-center justify-center mb-8 shadow-2xl" initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ delay: 0.3, duration: 0.8, type: "spring" }}>
+        <span className="text-[#0f172a] font-bold text-2xl">MW</span>
+      </motion.div>
+      <motion.h1 className="text-5xl md:text-7xl font-serif" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.8 }}>
+        Introducing <span className="text-[#c9a227]">MergeWhy</span>
+      </motion.h1>
+      <motion.p className="text-xl text-white/60 mt-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1, duration: 0.8 }}>Decision Evidence at Merge Time</motion.p>
+    </motion.div>
+  );
+}
+
+function DemoScene5() {
+  return (
+    <motion.div className="h-full flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
+      <div className="relative">
+        <motion.div className="bg-[#1e293b] border border-white/10 rounded-xl p-6 min-w-[500px] shadow-2xl" initial={{ opacity: 0, y: 50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: 0.3, duration: 0.8, type: "spring" }}>
+          <div className="flex items-center gap-3 mb-4"><GitPullRequest className="w-6 h-6 text-[#4a7c59]" /><span className="text-[#4a7c59] font-medium">Open</span></div>
+          <h3 className="text-xl font-semibold mb-2">feat: Add payment retry logic with exponential backoff</h3>
+          <div className="flex items-center gap-4 text-white/60 text-sm mb-4"><span>#1247</span><span>feature/payment-retry</span><span className="flex items-center gap-1"><Users className="w-4 h-4" />3 reviewers</span></div>
+          <div className="flex gap-2"><span className="px-3 py-1 bg-[#c9a227]/20 text-[#c9a227] rounded-full text-sm">payments</span><span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm">backend</span></div>
+        </motion.div>
+        <motion.div className="absolute -right-48 top-1/2 -translate-y-1/2 flex items-center gap-3" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1.5, duration: 0.5 }}>
+          <ArrowRight className="w-8 h-8 text-[#c9a227]" />
+          <div className="bg-[#c9a227]/20 border border-[#c9a227]/40 rounded-lg px-4 py-2">
+            <motion.span className="text-[#c9a227] font-medium" initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0, 1] }} transition={{ delay: 2, duration: 2, repeat: Infinity }}>Evidence Being Captured...</motion.span>
+          </div>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+}
+
+function DemoScene6() {
+  const [score, setScore] = useState(0);
+  const [checks, setChecks] = useState([false, false, false, false]);
+
+  useEffect(() => {
+    const scoreInterval = setInterval(() => { setScore((prev) => prev >= 73 ? 73 : prev + 2); }, 50);
+    const t1 = setTimeout(() => setChecks((p) => [true, p[1], p[2], p[3]]), 1500);
+    const t2 = setTimeout(() => setChecks((p) => [p[0], true, p[2], p[3]]), 2500);
+    const t3 = setTimeout(() => setChecks((p) => [p[0], p[1], true, p[3]]), 3500);
+    const t4 = setTimeout(() => setChecks((p) => [p[0], p[1], p[2], true]), 4500);
+    return () => { clearInterval(scoreInterval); [t1, t2, t3, t4].forEach(clearTimeout); };
+  }, []);
+
+  const items = [{ icon: FileText, label: "PR Description", status: "Complete" }, { icon: MessageSquare, label: "Ticket Links", status: "JIRA-1247" }, { icon: Users, label: "Code Reviews", status: "3 approved" }, { icon: MessageSquare, label: "Slack Context", status: "#payments" }];
+
+  return (
+    <motion.div className="h-full flex items-center justify-center gap-12" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
+      <motion.div className="relative" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, duration: 0.8, type: "spring" }}>
+        <svg className="w-48 h-48 -rotate-90" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#1e293b" strokeWidth="8" />
+          <motion.circle cx="50" cy="50" r="40" fill="none" stroke="#c9a227" strokeWidth="8" strokeLinecap="round" strokeDasharray={251.2} initial={{ strokeDashoffset: 251.2 }} animate={{ strokeDashoffset: 251.2 - (251.2 * score) / 100 }} />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-5xl font-bold text-[#c9a227]">{score}</span><span className="text-white/60 text-sm">Evidence Score</span></div>
+      </motion.div>
+      <div className="space-y-4">
+        <motion.h3 className="text-2xl font-semibold mb-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>Decision Evidence Record</motion.h3>
+        {items.map((item, i) => (
+          <motion.div key={item.label} className="flex items-center gap-4 bg-[#1e293b] rounded-lg p-4 min-w-[350px]" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.8 + i * 0.2, duration: 0.5 }}>
+            <item.icon className="w-5 h-5 text-white/60" /><span className="flex-1">{item.label}</span><span className="text-white/60 text-sm">{item.status}</span>
+            <motion.div initial={{ scale: 0 }} animate={{ scale: checks[i] ? 1 : 0 }} transition={{ type: "spring", stiffness: 500 }}><CheckCircle2 className="w-5 h-5 text-[#4a7c59]" /></motion.div>
+          </motion.div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+function DemoScene7() {
+  const [dora, setDora] = useState(0);
+  const [iso, setIso] = useState(0);
+  useEffect(() => {
+    const d = setInterval(() => setDora((p) => p >= 67 ? 67 : p + 2), 40);
+    const i = setInterval(() => setIso((p) => p >= 50 ? 50 : p + 2), 50);
+    return () => { clearInterval(d); clearInterval(i); };
+  }, []);
+
+  return (
+    <motion.div className="h-full flex flex-col items-center justify-center gap-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
+      <motion.h2 className="text-3xl font-serif mb-8" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>Automatic Compliance Mapping</motion.h2>
+      <div className="flex gap-6">
+        <motion.div className="bg-[#1e293b] border border-white/10 rounded-2xl p-8 min-w-[300px]" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.6 }}>
+          <div className="flex items-center gap-3 mb-6"><span className="text-3xl">📊</span><span className="text-xl font-semibold">DORA Metrics</span></div>
+          <div className="space-y-2"><div className="flex justify-between"><span className="text-white/60">Compliance</span><span className="text-2xl font-bold text-[#c9a227]">{dora}%</span></div><div className="h-3 bg-[#0f172a] rounded-full overflow-hidden"><motion.div className="h-full bg-gradient-to-r from-[#c9a227] to-[#e4bc73] rounded-full" style={{ width: `${dora}%` }} /></div><p className="text-sm text-white/40 mt-2">5 of 7 controls satisfied</p></div>
+        </motion.div>
+        <motion.div className="bg-[#1e293b] border border-white/10 rounded-2xl p-8 min-w-[300px]" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8, duration: 0.6 }}>
+          <div className="flex items-center gap-3 mb-6"><span className="text-3xl">🛡️</span><span className="text-xl font-semibold">ISO 27001</span></div>
+          <div className="space-y-2"><div className="flex justify-between"><span className="text-white/60">Compliance</span><span className="text-2xl font-bold text-[#d4883a]">{iso}%</span></div><div className="h-3 bg-[#0f172a] rounded-full overflow-hidden"><motion.div className="h-full bg-gradient-to-r from-[#d4883a] to-[#e4a85a] rounded-full" style={{ width: `${iso}%` }} /></div><p className="text-sm text-white/40 mt-2">3 of 6 controls satisfied</p></div>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+}
+
+function DemoScene8() {
+  const [hash, setHash] = useState("");
+  const [isSealed, setIsSealed] = useState(false);
+  const fullHash = "sha256:9f86d...c3fe3";
+
+  useEffect(() => {
+    let i = 0;
+    const hashInterval = setInterval(() => { if (i <= fullHash.length) { setHash(fullHash.slice(0, i)); i++; } else { clearInterval(hashInterval); } }, 100);
+    const sealTimer = setTimeout(() => setIsSealed(true), 2500);
+    return () => { clearInterval(hashInterval); clearTimeout(sealTimer); };
+  }, []);
+
+  return (
+    <motion.div className="h-full flex flex-col items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
+      <motion.h2 className="text-3xl font-serif mb-12" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>Evidence Vault</motion.h2>
+      <motion.div className="relative bg-[#1e293b] border border-white/10 rounded-2xl p-12 min-w-[400px]" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5, duration: 0.6 }}>
+        <motion.div className="flex justify-center mb-8" animate={{ rotate: isSealed ? [0, -10, 10, 0] : 0 }} transition={{ delay: 0.2, duration: 0.5 }}>
+          <motion.div className={`p-6 rounded-full ${isSealed ? "bg-[#4a7c59]/20" : "bg-[#c9a227]/20"} transition-colors duration-500`}>
+            <Lock className={`w-16 h-16 ${isSealed ? "text-[#4a7c59]" : "text-[#c9a227]"} transition-colors duration-500`} />
+          </motion.div>
+        </motion.div>
+        <div className="text-center mb-6"><p className="text-white/60 text-sm mb-2">Cryptographic Hash</p><p className="font-mono text-xl text-[#c9a227] h-8">{hash}</p></div>
+        <AnimatePresence>
+          {isSealed && (
+            <motion.div className="flex justify-center" initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 300 }}>
+              <div className="flex items-center gap-2 bg-[#4a7c59]/20 text-[#4a7c59] px-6 py-3 rounded-full border border-[#4a7c59]/40"><Shield className="w-5 h-5" /><span className="font-semibold">Sealed & Immutable</span></div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function DemoScene9() {
+  return (
+    <motion.div className="h-full flex flex-col items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
+      <motion.div className="w-24 h-24 bg-gradient-to-br from-[#c9a227] to-[#e4bc73] rounded-2xl flex items-center justify-center mb-10 shadow-2xl" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, duration: 0.8, type: "spring" }}>
+        <span className="text-[#0f172a] font-bold text-3xl">MW</span>
+      </motion.div>
+      <motion.h1 className="text-5xl md:text-7xl font-serif mb-4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}><span className="text-[#c9a227]">MergeWhy</span></motion.h1>
+      <motion.p className="text-3xl text-white/80 font-serif mb-12" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>Never lose the <span className="text-[#c9a227]">WHY</span></motion.p>
+      <motion.div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-8 py-4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.5 }}><span className="text-xl font-mono">mergewhy.com</span></motion.div>
+    </motion.div>
+  );
+}
+
+function DemoEndScreen({ onRestart, onClose }: { onRestart: () => void; onClose: () => void }) {
+  return (
+    <motion.div className="h-full flex flex-col items-center justify-center gap-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
+      <div className="w-20 h-20 bg-gradient-to-br from-[#c9a227] to-[#e4bc73] rounded-2xl flex items-center justify-center shadow-2xl"><span className="text-[#0f172a] font-bold text-2xl">MW</span></div>
+      <h2 className="text-3xl font-serif text-white/80">Demo Complete</h2>
+      <div className="flex gap-4">
+        <motion.button onClick={onRestart} className="flex items-center gap-3 bg-[#c9a227] hover:bg-[#d4b03a] text-[#0f172a] font-semibold px-8 py-4 rounded-xl transition-colors" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}><RotateCcw className="w-5 h-5" />Restart Demo</motion.button>
+        <motion.button onClick={onClose} className="flex items-center gap-3 bg-white/10 hover:bg-white/20 text-white font-semibold px-8 py-4 rounded-xl transition-colors" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>Close</motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function LandingPage() {
   const [email, setEmail] = useState("");
   const [expandedControl, setExpandedControl] = useState<string | null>("dora-art9e");
   const [copied, setCopied] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
 
   const copyHash = () => {
     navigator.clipboard.writeText("sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069");
@@ -154,6 +431,10 @@ export default function LandingPage() {
 
   return (
     <div className="flex flex-col">
+      {/* Animated Demo Modal */}
+      <AnimatePresence>
+        {showDemo && <AnimatedDemo isOpen={showDemo} onClose={() => setShowDemo(false)} />}
+      </AnimatePresence>
       {/* Hero Section */}
       <section className="relative overflow-hidden py-12 sm:py-16 lg:py-20 bg-gradient-to-b from-background via-background to-navy/5">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber/10 via-transparent to-transparent opacity-50" />
@@ -200,15 +481,13 @@ export default function LandingPage() {
                   </Link>
                 </Button>
                 <Button
-                  asChild
+                  onClick={() => setShowDemo(true)}
                   variant="outline"
                   size="lg"
                   className="px-8 py-6 text-lg border-navy/30 text-navy hover:bg-navy/5 w-full sm:w-auto"
                 >
-                  <a href="#how-it-works">
-                    <Play className="mr-2 w-5 h-5" />
-                    Watch It Work
-                  </a>
+                  <Play className="mr-2 w-5 h-5" />
+                  Watch Demo
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground mt-4">
