@@ -52,7 +52,10 @@ export const derRouter = router({
             ...(input.search && {
               OR: [
                 { prTitle: { contains: input.search, mode: "insensitive" } },
-                { prNumber: { equals: parseInt(input.search) || -1 } },
+                // Only search by prNumber if search is a valid positive integer
+                ...(/^\d+$/.test(input.search)
+                  ? [{ prNumber: { equals: parseInt(input.search, 10) } }]
+                  : []),
               ],
             }),
           },

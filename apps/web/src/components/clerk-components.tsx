@@ -41,6 +41,7 @@ interface SafeOrganizationSwitcherProps {
       organizationSwitcherTrigger?: string;
       organizationPreview?: string;
       organizationPreviewTextContainer?: string;
+      organizationSwitcherTriggerIcon?: string;
     };
   };
 }

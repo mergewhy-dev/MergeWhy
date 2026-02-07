@@ -130,8 +130,16 @@ export default function RecordsPage() {
       {/* Error state */}
       {error && (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">
-            {error.message || "Failed to load records. Please select an organization."}
+          <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">
+            {error.message?.includes("Organization not found")
+              ? "No organization selected"
+              : "Failed to load records"}
+          </h3>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            {error.message?.includes("Organization not found")
+              ? "Please select an organization from the dropdown above to view your records."
+              : error.message || "Please try again later."}
           </p>
         </div>
       )}

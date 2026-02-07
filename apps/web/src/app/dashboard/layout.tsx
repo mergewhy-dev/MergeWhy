@@ -85,8 +85,26 @@ export default function DashboardLayout({
           </div>
 
           {/* Organization Switcher */}
-          {!collapsed && (
-            <div className="px-3 py-3 mb-2 border-b border-sidebar-border/50">
+          <div className={cn(
+            "border-b border-sidebar-border/50",
+            collapsed ? "px-2 py-3" : "px-3 py-3 mb-2"
+          )}>
+            {collapsed ? (
+              <div className="flex justify-center">
+                <SafeOrganizationSwitcher
+                  appearance={{
+                    elements: {
+                      rootBox: "w-full flex justify-center",
+                      organizationSwitcherTrigger:
+                        "w-10 h-10 flex items-center justify-center bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent rounded-xl border border-sidebar-border/50 transition-colors p-0",
+                      organizationPreview: "hidden",
+                      organizationPreviewTextContainer: "hidden",
+                      organizationSwitcherTriggerIcon: "w-5 h-5",
+                    },
+                  }}
+                />
+              </div>
+            ) : (
               <SafeOrganizationSwitcher
                 appearance={{
                   elements: {
@@ -98,8 +116,8 @@ export default function DashboardLayout({
                   },
                 }}
               />
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Navigation */}
           <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">

@@ -416,6 +416,14 @@ function GetStartedSection() {
               build your compliance audit trail.
             </p>
 
+            {/* Hint about organization */}
+            <div className="mb-6 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Tip:</span> If you already have repositories connected,
+                make sure you're viewing the correct organization. Use the organization switcher in the sidebar to switch between organizations.
+              </p>
+            </div>
+
             {/* Steps */}
             <div className="flex flex-wrap gap-4 mb-6 justify-center lg:justify-start">
               <div className="flex items-center gap-2 text-sm">

@@ -122,13 +122,24 @@ function RepositoriesTable() {
   }
 
   if (error) {
+    // Check if it's an organization not found error (user needs to select org)
+    const isOrgError = error.message?.includes("Organization not found");
     return (
       <Card className="premium-card">
         <CardContent className="py-12">
-          <EmptyStateGitHub
-            title="Connect GitHub to get started"
-            description="Install the MergeWhy GitHub App to start capturing decision evidence from your pull requests."
-          />
+          <div className="text-center">
+            <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-muted flex items-center justify-center">
+              <AlertCircle className="w-7 h-7 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground mb-1">
+              {isOrgError ? "No organization selected" : "Failed to load repositories"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {isOrgError
+                ? "Please select an organization from the dropdown above."
+                : error.message || "Please try again later."}
+            </p>
+          </div>
         </CardContent>
       </Card>
     );
